@@ -22,7 +22,7 @@ This project combines a Hermes Agent plugin running in Termux with an Android co
 
 ## Building the Android app
 
-**The source-only preview does not include the Gradle wrapper JAR, Android AAR, wake models, Vosk model, or PCM test fixtures.** A plain checkout cannot build or run all tests until the verified upstream dependencies have been obtained separately and placed at the expected paths. The checksums and upstream sources in `android/ASSET-CHECKSUMS.md` identify the omitted files; they do not resolve redistribution licenses. No binary dependency or model is published in this preview.
+**The source-only preview does not include the Gradle wrapper JAR, Android AAR, wake models, Vosk model, or PCM test fixtures.** A plain checkout cannot build or run all tests until the verified upstream dependencies have been obtained separately and placed at the expected paths. The checksums and upstream sources in `android/ASSET-CHECKSUMS.md` identify the omitted files; they do not resolve redistribution licenses. No binary dependency or model is published in this preview. See [the build reproduction guide](android/REPRODUCIBLE-BUILD.md) for upstream locations and the Windows checkout line-ending limitation.
 
 Once the missing dependencies are supplied, from `android/` with Android SDK 36, a compatible JDK, and an arm64 device, the intended build commands are:
 

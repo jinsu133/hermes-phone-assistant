@@ -1,0 +1,47 @@
+name: hermes-phone-control
+version: "0.18.0"
+description: "Voice-driven control of a paired Android phone through Hermes: spoken requests run through the existing conversation, permitted accessibility actions are executed and re-observed, and the verified result is spoken back. Android/Termux companion app required; same-device loopback transport only."
+author: ko_spell
+kind: standalone
+requires_hermes: ">=0.19"
+platforms:
+  - linux
+provides_tools:
+  - phone_status
+  - phone_observe
+  - phone_act
+  - phone_run_plan
+  - phone_profiles
+  - voice_draft
+  - voice_progress
+  - phone_speech
+provides_hooks:
+  - pre_llm_call
+  - pre_tool_call
+  - post_llm_call
+  - pre_api_request
+  - on_session_end
+provides_middleware:
+  - llm_request
+  - tool_execution
+provides_commands:
+  - voicelink
+  - phone_setup
+  - phone-setup
+  - phone_pairing
+  - phone-pairing
+  - phone-speech
+  - phone_speech
+  - phone-execution
+  - phone_execution
+  - voicefix
+config_schema:
+  voice_enabled:
+    type: bool
+    default: false
+    description: Start the loopback voice bridge when the gateway starts. Off by default; the pairing secret is never stored in plugin config.
+  control_enabled:
+    type: bool
+    default: false
+    description: Allow the paired accessibility tools to act. The companion app must also grant its own control consent.
+capabilities: []

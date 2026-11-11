@@ -1,0 +1,22 @@
+# Never commit credentials, device data, build results or Python bytecode.
+.env
+.env.*
+*.keystore
+*.jks
+*.p12
+*.pfx
+*.pem
+*.key
+*pairing*.json
+*connection*.json
+__pycache__/
+*.py[cod]
+.gradle/
+.kotlin/
+**/build/
+local.properties
+*.apk
+*.aab
+*.log
+*.sqlite*
+*.db

@@ -1,0 +1,4 @@
+Vosk API 0.3.75: Copyright Alpha Cephei Inc., Apache-2.0.
+Korean model vosk-model-small-ko-0.22: Apache-2.0 per https://alphacephei.com/vosk/models
+Model source: https://alphacephei.com/vosk/models/vosk-model-small-ko-0.22.zip
+JNA 5.18.1: dual LGPL-2.1-or-later / Apache-2.0; used under Apache-2.0. https://github.com/java-native-access/jna

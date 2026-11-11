@@ -1,0 +1,78 @@
+package com.mist.connect
+import android.media.*
+import android.os.SystemClock
+import java.io.ByteArrayOutputStream
+import java.net.HttpURLConnection
+import java.util.Arrays
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
+
+object Fixture {
+ var clock=0L; var count=1600; var advance=100L; var reads=0; var starts=0; var stops=0; var releases=0
+ var failStop=false; var failRelease=false; var onRead:()->Unit={}; var buffer=ShortArray(0)
+ fun reset() { clock=0; count=1600; advance=100; reads=0; starts=0; stops=0; releases=0; failStop=false; failRelease=false; onRead={}; buffer=ShortArray(0) }
+}
+class SourceServicePlaybackAdapter {
+ enum class ServiceStage { REQUEST }
+ var endings=0; var clean=true
+ fun captureIdle(epoch:Long, revision:Long, valid:()->Boolean, start:()->Unit):Boolean { if(!valid()) return false; start();return true }
+ fun endListening(epoch:Long, confirmed:Boolean) { endings++; clean=clean && confirmed }
+ fun serviceFailure(stage:ServiceStage,error:Exception) {}
+}
+object VoiceDiagnostics { fun reportException(stage:String,error:Exception) {} }
+class FakeCapture(var error:Throwable?=null,var cleanupConfirmed:Boolean=true) {
+ fun nextRequest(followup:Boolean,start:((()->Unit)->Boolean)):ByteArray? { start {};error?.let{throw it};return byteArrayOf(1,2) }
+}
+class Probe {
+ companion object { const val SAMPLE_RATE=16000;const val CAPTURE_LIMIT_MS=30_000L;const val MIN_PCM_BYTES=3200 }
+ val running=AtomicBoolean(true);val cancelled=AtomicBoolean(false);val submitRequested=AtomicBoolean(false)
+ val turnStopped=AtomicBoolean(false);val playbackEpoch=AtomicLong(1);val consentRevision=AtomicLong(1)
+ var recorder:AudioRecord?=null;var connection:HttpURLConnection?=null;var playbackRequestScope="r"
+ val playback=SourceServicePlaybackAdapter();var status="";var uploads=0;var promoted=0;var finished=0;var submitted:ByteArray?=null
+ var rejectedNotice:String?=null
+ fun state(message:String) { __STATE_BLOCK__ }
+ var cleanupPrimary:Throwable?=null;var owned=true;var taken=0;var wiped=false
+ fun captureValid()=running.get() && !cancelled.get()
+ fun onCaptureCleanup(outcome:CaptureCleanup.Outcome,primary:Throwable?) { cleanupPrimary=primary;if(!outcome.confirmed()){running.set(false);cancelled.set(true)} }
+ fun promoteToPlayback() { promoted++ }
+ fun submitAndSpeak(pcm:ByteArray,token:String) { uploads++;submitted=pcm;check(pcm.any{it.toInt()!=0}) }
+ fun safeCategory(error:Exception)=error.javaClass.simpleName
+ fun finish(startId:Int) { finished++;if(playback.clean) owned=false }
+ fun manual()=captureAndSend(1,"offline")
+ data class Ticket(val epoch:Long=1,val consent:Long=1,val request:String="r")
+ fun listen(ticket:Ticket, valid:()->Boolean, start:()->Unit)=playback.captureIdle(ticket.epoch,ticket.consent,valid,start)
+ fun endpoint(capture:FakeCapture):ByteArray? {
+  val ticket:Ticket?=Ticket();val epoch=1L;val revision=1L
+  var followup:Ticket?=ticket
+  __ENDPOINT_BLOCK__
+  check(followup==null)
+  return pcm
+ }
+ __STATUS_METHOD__
+ __CAPTURE_METHOD__
+ // Exact production wiping buffer, with a test-only observer after each wipe and take.
+ __WIPING_CLASS__
+}
+fun main() {
+ var passed=0;var failed=0
+ fun test(name:String,body:()->Unit) { try{Fixture.reset();body();passed++;println("PASS $name")}catch(t:Throwable){failed++;println("FAIL $name: $t");t.printStackTrace()} }
+ fun rejected(p:Probe) { check(p.uploads==0 && p.promoted==0 && p.finished==1);check(p.taken==0 && p.wiped);check(Fixture.buffer.all{it.toInt()==0});check(Fixture.stops==1 && Fixture.releases==1 && p.playback.endings==1) }
+ test("manual wall cap discards without auto-submit") {val p=Probe();Fixture.advance=15000;p.manual();rejected(p);check(!p.submitRequested.get());check(p.status.contains("전송하지 않았습니다"));check(!p.owned)}
+ test("manual sample cap beats fast PCM clock") {val p=Probe();Fixture.advance=1;p.manual();rejected(p);check(Fixture.reads==300);check(!p.submitRequested.get())}
+ test("submit racing wall cap still rejects") {val p=Probe();Fixture.advance=30000;Fixture.onRead={p.submitRequested.set(true)};p.manual();rejected(p)}
+ test("submit racing sample cap still rejects") {val p=Probe();Fixture.advance=1;Fixture.onRead={if(Fixture.reads==300)p.submitRequested.set(true)};p.manual();rejected(p)}
+ test("zero reads are bounded by wall cap") {val p=Probe();Fixture.count=0;Fixture.advance=30000;p.manual();rejected(p)}
+ test("manual early explicit submit succeeds then wipes PCM") {val p=Probe();Fixture.onRead={if(Fixture.reads==2)p.submitRequested.set(true)};p.manual();check(p.uploads==1 && p.taken==1 && p.finished==1 && p.promoted==1 && p.wiped);check(p.submitted!!.all{it.toInt()==0});check(!p.owned)}
+ test("cancel during read does not submit") {val p=Probe();Fixture.onRead={p.cancelled.set(true);p.running.set(false);p.submitRequested.set(true)};p.manual();rejected(p)}
+ test("cap with release failure retains owner and primary rejection") {val p=Probe();Fixture.advance=30000;Fixture.failRelease=true;p.manual();rejected(p);check(p.owned && !p.playback.clean);check(p.cleanupPrimary is SpeechEndGate.Rejected);check(p.cleanupPrimary!!.suppressed.size==1)}
+ test("cap with stop failure still releases and retains owner") {val p=Probe();Fixture.advance=30000;Fixture.failStop=true;p.manual();rejected(p);check(p.owned && !p.playback.clean);check(p.cleanupPrimary!!.suppressed.size==1)}
+ test("submit with cleanup failure never uploads") {val p=Probe();Fixture.failRelease=true;Fixture.onRead={p.submitRequested.set(true)};p.manual();check(p.uploads==0 && p.promoted==0 && p.owned);check(p.wiped && Fixture.buffer.all{it.toInt()==0})}
+ for(reason in listOf(SpeechEndGate.Decision.SAFETY_LIMIT,SpeechEndGate.Decision.AMBIGUOUS)) {
+  test("endpoint $reason safe rejection yields empty audio and specific status") {val p=Probe();check(p.endpoint(FakeCapture(SpeechEndGate.Rejected(reason)))!!.isEmpty());check(p.playback.endings==1 && p.playback.clean);check(p.status.contains(if(reason==SpeechEndGate.Decision.SAFETY_LIMIT)"30초" else "발화 종료"));check(p.uploads==0)}
+  test("endpoint $reason poisoned cleanup rethrows exact rejection and ends listening") {val p=Probe();val e=SpeechEndGate.Rejected(reason);e.addSuppressed(IllegalStateException("cleanup"));try{p.endpoint(FakeCapture(e,false));error("swallowed") }catch(t:Throwable){check(t===e)};check(p.playback.endings==1 && !p.playback.clean);check(e.suppressed.size==1)}
+ }
+ test("rejection notice persists through wake wait but clears on new capture") {val p=Probe();p.endpoint(FakeCapture(SpeechEndGate.Rejected(SpeechEndGate.Decision.SAFETY_LIMIT)));p.state("듣기 ON · 대기");check(p.status.contains("30초") && p.status.contains("듣기 ON"));p.state("요청 듣는 중");check(p.status=="요청 듣는 중" && p.rejectedNotice==null)}
+ test("non-rejection errors are not converted to empty success") {val p=Probe();val e=IllegalStateException("read");try{p.endpoint(FakeCapture(e));error("swallowed")}catch(t:Throwable){check(t===e)};check(p.playback.endings==1)}
+ println("RESULT service slices: $passed passed, $failed failed")
+ check(failed==0)
+}

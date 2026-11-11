@@ -1,0 +1,9 @@
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" android:layout_width="match_parent" android:layout_height="match_parent" android:orientation="vertical" android:padding="12dp" android:background="#172536">
+<TextView android:layout_width="match_parent" android:layout_height="wrap_content" android:text="헤르메스 · 로컬 호출어" android:textColor="#FFFFFF" android:textSize="17sp"/>
+<TextView android:id="@+id/voice_state" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:text="듣기 OFF" android:textColor="#C6D8EE" android:maxLines="2"/>
+<TextView android:id="@+id/voice_lock_state" android:layout_width="match_parent" android:layout_height="wrap_content" android:textColor="#A7E8D4" android:textSize="12sp" android:maxLines="2"/>
+<Button android:id="@+id/voice_lock_settings" android:layout_width="match_parent" android:layout_height="48dp" android:text="Extend Unlock 설정" android:textSize="12sp"/>
+<LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="horizontal">
+<Button android:id="@+id/voice_on" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:text="듣기 ON"/>
+<Button android:id="@+id/voice_off" android:layout_width="0dp" android:layout_weight="1" android:layout_height="48dp" android:text="OFF"/>
+</LinearLayout></LinearLayout>

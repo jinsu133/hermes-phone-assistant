@@ -1,0 +1,620 @@
+package com.mist.connect
+
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
+
+// Hardware-free service-slice harness. Production owner/driver/cancellation/mic lease;
+// only Android UI, native capture and remote transport are doubles. No sockets/audio.
+private fun requireThat(value: Boolean, message: String) { check(value) { message } }
+private fun awaitCondition(message: String, predicate: () -> Boolean) {
+    val end = System.nanoTime() + TimeUnit.SECONDS.toNanos(5)
+    while (!predicate() && System.nanoTime() < end) Thread.sleep(1)
+    requireThat(predicate(), message)
+}
+private class Transport : SourceControllerTransport {
+    val beats = java.util.concurrent.atomic.AtomicInteger()
+    val cancelEntered = CountDownLatch(1)
+    var cancelRelease: CountDownLatch? = null
+    override fun connect() = SourceControllerTransport.Connection("fixture", "session", "host", "device", 1, "challenge", 0)
+    override fun heartbeat(c: SourceControllerTransport.Connection): Double { beats.incrementAndGet(); return 30.0 }
+    override fun stopAck(c: SourceControllerTransport.Connection) {}
+    override fun cancel(c: SourceControllerTransport.Connection) {
+        cancelEntered.countDown()
+        cancelRelease?.let { check(it.await(5, TimeUnit.SECONDS)) }
+    }
+}
+private class Connection { fun disconnect() {} }
+private class Main {
+    fun removeCallbacks(value: Any) {}
+    // Queued UI callbacks are drained explicitly, including after a newer START.
+    private val tasks = java.util.concurrent.ConcurrentLinkedQueue<() -> Unit>()
+    fun post(task: () -> Unit) { tasks.add(task) }
+    fun drain() { while (true) (tasks.poll() ?: return).invoke() }
+}
+private class WakeLock { val isHeld = false; fun release() {} }
+private class Trial { fun stop() {} }
+private class Prefs { fun getString(key: String, default: String) = default }
+private object Manifest { object permission { const val RECORD_AUDIO="fixture" } }
+private object PackageManager { const val PERMISSION_GRANTED=0 }
+private object ActionConfirmation { var beforeCancel: () -> Unit = {}; fun cancelAll() { beforeCancel() } }
+private object McpService { var actionsPaused = false }
+private object VoiceWidget { fun update(service: Any) {} }
+private object VoiceBridgeClient {
+    @Volatile var cancel: (ScopedVoiceCancellation.Scope) -> Unit = { error("unexpected remote request") }
+    fun cancelTurn(token: String, scope: ScopedVoiceCancellation.Scope) { cancel(scope) }
+    var terminal: (ScopedVoiceCancellation.Scope, () -> Boolean) -> Boolean = { _, _ -> error("unexpected terminal") }
+    fun cancelAndAwaitTerminal(token: String, scope: ScopedVoiceCancellation.Scope, current: () -> Boolean) = terminal(scope,current)
+}
+private open class Service { open fun onDestroy() {} }
+private class Probe : Service() {
+    companion object {
+        // Extract the actual companion singleton, shared by every recreated service.
+__CANCELLATION__
+        @Volatile var status = "listening"
+    }
+__OFF_FIELDS__
+    val clock = AtomicLong(100)
+    val playback = SourceServicePlaybackAdapter(SourceServicePlaybackAdapter.Mode.BUFFERED_SERVICE, clock::get)
+    val transport = Transport()
+    val cancellation get() = Companion.cancellation
+    private val turnStopped = AtomicBoolean(false)
+    private val cancelled = AtomicBoolean(false)
+    private val running = AtomicBoolean(true)
+    private val submitRequested = AtomicBoolean(false)
+    private val consentRevision = AtomicLong(1)
+    private val playbackEpoch = AtomicLong(1)
+    private fun checkSelfPermission(permission: String) = PackageManager.PERMISSION_GRANTED
+    private fun captureValid() = running.get() && !cancelled.get() && !cancellation.blocked() && playback.controllerCurrent()
+    private var playbackRequestScope = ""
+    private var activeRequestId = ""
+    private var activeSyntheticTrial: Trial? = null
+    // Legacy OFF suite does not negotiate request-render; connected v2 is tested separately.
+    private val normalStreaming=false
+    private val requestRender: NormalVoiceStream.Request?=null
+    private fun settleRequestRender(): Any?=error("request_render_out_of_scope")
+    var controllerDriver: SourceControllerDriver? = null
+    var lifecycleThread: Thread? = null
+    var status: String
+        get() = Companion.status
+        set(value) { Companion.status = value }
+    private var handsfreeActive = true
+    private var connection: Connection? = null
+    private var progressConnection: Connection? = null
+    private var wakeLock: WakeLock? = null
+    private val main = Main()
+    private val deadline = Any()
+    private val widgetTick = Any()
+    private var activeStartId = 0
+    private val MODE_PRIVATE = 0
+    private val STOP_FOREGROUND_REMOVE = 1
+    private fun getSharedPreferences(name: String, mode: Int) = Prefs()
+    private fun stopForeground(mode: Int) {}
+    private fun stopSelf(id: Int) {}
+
+    fun acceptedStart(startId: Int) {
+__START_RESET__
+        running.set(true)
+        status = "new listening $startId"
+    }
+    fun drainUI() = main.drain()
+    fun republish() {
+        // Allows --service-source to execute the same negative controls on pre-fix source.
+        val method = javaClass.declaredMethods.firstOrNull { it.name == "settleOffCleanup" } ?: return
+        method.isAccessible = true
+        method.invoke(this)
+    }
+    fun joinCancelWorkers() {
+        Thread.getAllStackTraces().keys.filter { it.name == "voice-cancel" || it.name == "voice-destroy-cancel" }.forEach {
+            it.join(3000); check(!it.isAlive) { "cancel worker failed to join" }
+        }
+    }
+    fun prepare() {
+        check(__MIC_CLAIM__)
+        acceptedStart(1)
+        playback.requireController { cancelled.set(true); running.set(false); turnStopped.set(true) }
+        controllerDriver = SourceControllerDriver(playback, transport, clock::get, 3000)
+        check(controllerDriver!!.prepare())
+        check(playback.begin(1, 1))
+    }
+    fun startCapture(monitor: Boolean) {
+        check(if (monitor) playback.startMonitor({ true }, {}) else playback.captureIdle(1, 1, { true }, {}))
+    }
+    fun completeCapture(failure: Boolean) {
+        val outcome = CaptureCleanup.release({}, null, { if (failure) throw java.io.IOException("fixture") })
+        onCaptureCleanup(outcome, null)
+        playback.endListening(1, outcome.confirmed())
+    }
+    fun off(message: String = "OFF completed") = cancelActive(message)
+    fun finishNow() = finish(1)
+    fun lateRemoteAck(scope: ScopedVoiceCancellation.Scope) = cancelRemote("fixture", scope)
+    fun releaseOwnLeaseForTest() { __MIC_RELEASE__ }
+    fun destroyed() = onDestroy()
+    fun waitCancelWorker() {
+        awaitCondition("cancel worker did not publish outcome") { drainUI(); !status.startsWith("취소 요청 중") }
+    }
+
+    fun duplexService() {
+        prepare(); startCapture(true)
+        val fixture = CancellationContinuityProbe.Fixture(playback,"old-request","old-audio",1)
+        playbackRequestScope = "old-request"
+        val turn = newDuplexTurn("fixture",1)
+        try {
+            // Legacy synthetic exact-stop metadata has no effective-size policy and
+            // must NOT qualify for the explicitly typed continuous-render route.
+            check(!turn.request(fixture.reference.scope(),true))
+        } finally {
+            turn.close(); fixture.close(); completeCapture(false)
+            finishNow(); controllerDriver?.stopAndJoin(1000); MicrophoneOwner.release()
+        }
+    }
+    fun nativeDuplexService(outcome: String) {
+        check(__MIC_CLAIM__)
+        acceptedStart(1)
+        playback.requireController { cancelled.set(true); running.set(false); turnStopped.set(true) }
+        val fixture = NormalRetainedProbe.Fixture(playback)
+        controllerDriver = fixture.driver
+        playbackEpoch.set(2)
+        val upload = cancellation.begin("duplex-generation","duplex-operation")
+        val exact = cancellation.accept(upload,"duplex-generation","duplex-operation","old-request")!!
+        playbackRequestScope = "old-request"; activeRequestId = "old-request"
+        val entered = CountDownLatch(1); val release = CountDownLatch(1)
+        val scope = fixture.reference.scope()
+        fixture.beforeCancel()
+        VoiceBridgeClient.terminal = { target, current ->
+            check(target === exact) // captured OLD target even if OFF wins
+            entered.countDown(); check(release.await(15,TimeUnit.SECONDS))
+            val gate = DuplexTurnHandoff.TerminalGate("duplex-generation","old-request")
+            val run = "run_" + "a".repeat(32)
+            gate.observe(true,"duplex-generation","old-request",run,"PENDING",false)
+            val clean = gate.observe(true,"duplex-generation","old-request",run,
+                if (outcome == "unknown") "UNKNOWN" else "CLEAN",true) == DuplexTurnHandoff.Terminal.CLEAN
+            clean && current()
+        }
+        val beforeCancel = CountDownLatch(1); val permitCancel = CountDownLatch(1)
+        if (outcome == "off-before-cancel") ActionConfirmation.beforeCancel = {
+            beforeCancel.countDown(); check(permitCancel.await(5,TimeUnit.SECONDS))
+        }
+        val turn = newDuplexTurn("fixture",1) // exact source-derived factory
+        try {
+            check(turn.request(scope,true)) // qualification seam only, gates stay false
+            check(playback.playbackReference(2)==null && duplexMonitorReference() === fixture.reference)
+            check(!MicrophoneOwner.claim())
+            if (outcome == "off-before-cancel") {
+                check(beforeCancel.await(2,TimeUnit.SECONDS))
+                playback.off() // captured target already belongs to the cancellation worker
+                permitCancel.countDown()
+                check(entered.await(2,TimeUnit.SECONDS)) // OLD target still attempted after OFF
+                check(fixture.closing.await(2,TimeUnit.SECONDS))
+                check(fixture.normalCancel.await(2,TimeUnit.SECONDS))
+                check(!turn.collecting())
+                fixture.captureClosed(); completeCapture(false)
+                release.countDown(); fixture.release.countDown()
+                check(!turn.join(3000) && fixture.joinLocal() && takeDuplexPcm(turn,1)==null)
+                return
+            }
+            check(entered.await(2,TimeUnit.SECONDS)) // independent of blocked source.close
+            fixture.cancellationObserved() // actual NormalVoiceStream /normal/cancel
+            check(turnStopped.get() && activeRequestId.isEmpty())
+            if (outcome == "clean-before") { release.countDown(); check(turn.join(3000)); check(turn.collecting()) }
+            val command = fixture.endpoint() // >5s whole JNI residual, ordinary timestamps
+            val expected = command.pcm.copyOf()
+            turn.endpoint(command)
+            fixture.captureClosed()
+            completeCapture(false)
+            check(takeDuplexPcm(turn,1)==null) // renderer/source cleanup still pending
+            if (outcome == "off") playback.off()
+            if (outcome == "close-failed") fixture.failClose = true
+            fixture.release.countDown()
+            check(fixture.joinLocal())
+            release.countDown()
+            val joined = turn.join(3000)
+            val clean = outcome == "clean" || outcome == "clean-before"
+            check(joined == clean)
+            val pcm = takeDuplexPcm(turn,1)?.pcm // exact production transfer
+            if (clean) {
+                check(pcm != null && pcm.size==192000 && pcm.size==expected.size*2)
+                expected.forEachIndexed { i, sample ->
+                    check(pcm[i*2]==sample.toByte() && pcm[i*2+1]==(sample.toInt() ushr 8).toByte())
+                }
+                pcm.fill(0); check(takeDuplexPcm(turn,1)==null)
+            } else check(pcm==null)
+            expected.fill(0); turn.close(); check(command.pcm.all { it.toInt()==0 })
+        } finally {
+            permitCancel.countDown(); ActionConfirmation.beforeCancel = {}
+            fixture.release.countDown(); release.countDown(); turn.join(3000); turn.close(); fixture.close()
+            finishNow(); controllerDriver?.stopAndJoin(1000); MicrophoneOwner.release()
+        }
+    }
+__DUPLEX__
+__QUIESCE__
+__CAPTURE_CLEANUP__
+__INVALIDATE__
+__CANCEL_REMOTE__
+__CANCEL_ACTIVE__
+__FINISH__
+__DESTROY__
+}
+
+private fun offBeforeCaptureCleanup(monitor: Boolean, failCapture: Boolean, repeated: Boolean) {
+    val p = Probe()
+    val captureEntered = CountDownLatch(1)
+    val releaseCapture = CountDownLatch(1)
+    val failure = java.util.concurrent.atomic.AtomicReference<Throwable?>()
+    var poisonedBeforeRelease = false
+    var retainedBeforeRelease = false
+    var releasedAfterCleanup = false
+    try {
+        p.prepare()
+        p.lifecycleThread = Thread({
+            try {
+                p.startCapture(monitor)
+                captureEntered.countDown()
+                check(releaseCapture.await(5, TimeUnit.SECONDS))
+                p.completeCapture(failCapture)
+                p.finishNow()
+            } catch (e: Throwable) { failure.set(e) }
+        }, "fixture-capture-lifecycle").also { it.start() }
+        check(captureEntered.await(2, TimeUnit.SECONDS))
+        p.off(); p.waitCancelWorker()
+        if (repeated) { p.off(); p.waitCancelWorker() }
+        poisonedBeforeRelease = p.playback.blocked()
+        retainedBeforeRelease = !MicrophoneOwner.claim()
+        requireThat(!p.playback.captureIdle(1, 1, { true }, { error("capture after OFF") }), "OFF must fence capture")
+        // Matches CANCEL_REQUEST -> stopSelf -> onDestroy before native capture returns.
+        p.destroyed()
+    } finally {
+        releaseCapture.countDown()
+        p.lifecycleThread?.join(4500)
+        requireThat(p.lifecycleThread?.isAlive != true, "lifecycle failed to join")
+        p.controllerDriver?.stopAndJoin(1000)
+        releasedAfterCleanup = MicrophoneOwner.claim()
+        // Test-only reset between independent owners; production never does this on failure.
+        MicrophoneOwner.release()
+    }
+    p.joinCancelWorkers(); p.drainUI()
+    failure.get()?.let { throw it }
+    requireThat(retainedBeforeRelease, "capture cleanup pending must retain process mic lease")
+    requireThat(!poisonedBeforeRelease, "OFF poisoned owner while capture cleanup was merely pending")
+    requireThat(releasedAfterCleanup != failCapture, "global mic lease release must match confirmed cleanup")
+    requireThat(p.playback.blocked() == failCapture, "native failure must remain sticky; clean OFF must not poison")
+    if (failCapture) requireThat(p.status == "재생 정리가 확인되지 않아 마이크 재사용을 차단했습니다", "capture failure shares generic finish status")
+    else requireThat(p.status == "OFF completed", "clean lifecycle left stale OFF status: ${p.status}")
+}
+private fun cleanBeforeOff() {
+    val p = Probe()
+    try {
+        p.prepare(); p.startCapture(false); p.completeCapture(false)
+        p.off(); p.waitCancelWorker(); p.finishNow()
+        requireThat(!p.playback.blocked(), "already clean capture must remain unpoisoned")
+        requireThat(MicrophoneOwner.claim(), "clean finish must release process microphone")
+    } finally { p.controllerDriver?.stopAndJoin(1000); MicrophoneOwner.release() }
+}
+private fun controllerCleanupIsNotPlaybackFailure() {
+    val p = Probe()
+    val release = CountDownLatch(1)
+    try {
+        p.prepare(); p.transport.cancelRelease = release
+        p.finishNow() // Real 3000ms join timeout; no playback/capture was started.
+        requireThat(p.transport.cancelEntered.count == 0L, "controller cancel must have entered")
+        requireThat(p.playback.blocked(), "unjoined controller must poison")
+        requireThat(!MicrophoneOwner.claim(), "controller cleanup failure must retain mic lease")
+        requireThat(p.status == "재생 정리가 확인되지 않아 마이크 재사용을 차단했습니다", "generic text masks controller cleanup")
+        requireThat(p.playback.diagnosticSnapshot().none { it.contains("stage=play_failed") }, "no playback failure was injected")
+    } finally { release.countDown(); p.controllerDriver?.stopAndJoin(1000); MicrophoneOwner.release() }
+}
+private fun connectedHeartbeatDuringCapture() {
+    val p = Probe()
+    try {
+        p.prepare(); p.startCapture(false)
+        // Send-time lease budget 30s, due at one third. Advance virtual clock only.
+        for (expected in 2..4) {
+            p.clock.addAndGet(10000)
+            awaitCondition("connected heartbeat starved during capture") {
+                p.playback.diagnosticSnapshot().count { it.contains("stage=heartbeat_accepted") } >= expected
+            }
+            requireThat(p.playback.controllerCurrent(), "renewed capture must retain controller lease")
+        }
+        p.completeCapture(false); p.finishNow()
+        requireThat(MicrophoneOwner.claim(), "heartbeat worker must join on OFF")
+    } finally { p.controllerDriver?.stopAndJoin(1000); MicrophoneOwner.release() }
+}
+private fun remoteAndLocalOrdering(remoteFirst: Boolean, repeated: Boolean, failRemote: Boolean, failCapture: Boolean = false) {
+    val p = Probe()
+    val entered = CountDownLatch(1)
+    val release = CountDownLatch(1)
+    val scope = p.cancellation.begin("fixture-generation", "fixture-operation")
+    val calls = java.util.concurrent.atomic.AtomicInteger()
+    VoiceBridgeClient.cancel = {
+        check(it === scope); calls.incrementAndGet(); entered.countDown()
+        check(release.await(5, TimeUnit.SECONDS))
+        if (failRemote) throw java.io.IOException("remote cleanup unproven")
+    }
+    try {
+        p.prepare(); p.startCapture(false); p.off()
+        check(entered.await(2, TimeUnit.SECONDS))
+        if (repeated) p.off("latest OFF completed")
+        if (remoteFirst) { release.countDown(); p.joinCancelWorkers(); p.drainUI() }
+        requireThat(!MicrophoneOwner.claim(), "neither pending edge may release the process lease")
+        requireThat(!p.status.endsWith("OFF completed"), "OFF cannot complete while native capture is pending")
+        p.completeCapture(failCapture); p.finishNow(); p.drainUI()
+        if (!remoteFirst) {
+            requireThat(p.cancellation.blocked(), "withheld remote ACK must retain cancellation gate")
+            requireThat(!MicrophoneOwner.claim(), "local cleanup alone must not release process lease")
+            requireThat(!p.status.endsWith("OFF completed"), "local cleanup alone must not publish OFF")
+            if (!failCapture) requireThat(!p.playback.blocked(), "pending remote ACK is not a local cleanup failure")
+            release.countDown(); p.joinCancelWorkers(); p.drainUI()
+        }
+        requireThat(calls.get() == 1, "repeated OFF must not duplicate remote cancellation")
+        if (failRemote || failCapture) {
+            val failure = p.status
+            requireThat(!failure.endsWith("OFF completed"), "genuine failure cannot become completed OFF")
+            requireThat(p.playback.blocked(), "failed cleanup must remain blocked")
+            requireThat(!MicrophoneOwner.claim(), "failed cleanup must retain process microphone")
+            p.off(); p.joinCancelWorkers(); p.drainUI()
+            requireThat(p.status == failure, "repeated OFF must preserve genuine failure")
+        } else {
+            val expected = if (repeated) "latest OFF completed" else "OFF completed"
+            requireThat(p.status == expected, "both proven edges must settle latest OFF: ${p.status}")
+            requireThat(!p.cancellation.blocked(), "successful ACK must settle cancellation")
+            requireThat(MicrophoneOwner.claim(), "both proven edges must release process lease")
+            // This claim stands for another owner's lease. Repeated settlement cannot clear it.
+            p.republish(); p.finishNow(); p.drainUI()
+            requireThat(!MicrophoneOwner.claim(), "duplicate completion released a different owner's lease")
+        }
+    } finally {
+        release.countDown(); p.joinCancelWorkers(); p.controllerDriver?.stopAndJoin(1000)
+        MicrophoneOwner.release()
+    }
+}
+private fun staleUiAfterNewStart(recreated: Boolean) {
+    val old = Probe()
+    try {
+        old.prepare(); old.startCapture(false); old.completeCapture(false)
+        old.off(); old.joinCancelWorkers(); old.finishNow() // Leave all UI callbacks queued.
+        requireThat(MicrophoneOwner.claim(), "first cleanup must release its own process lease")
+        val next = if (recreated) Probe() else old
+        next.acceptedStart(if (recreated) 1 else 2)
+        val status = next.status
+        old.drainUI(); old.republish(); old.drainUI()
+        requireThat(next.status == status, "retired OFF callback overwrote newer service status")
+        requireThat(!MicrophoneOwner.claim(), "retired completion released newer process lease")
+    } finally { old.controllerDriver?.stopAndJoin(1000); MicrophoneOwner.release() }
+}
+private fun deadThreadIsNotCleanupEvidence() {
+    val p = Probe()
+    try {
+        p.prepare(); p.startCapture(false)
+        p.lifecycleThread = Thread({}) // Not alive, but no native release/finish proof.
+        p.off(); p.joinCancelWorkers(); p.drainUI()
+        requireThat(p.status == "요청 권한을 취소했습니다 · 로컬 정리 대기 중", "dead thread alone cannot certify OFF")
+        requireThat(!MicrophoneOwner.claim(), "missing finish proof must retain process lease")
+        p.completeCapture(false); p.finishNow(); p.drainUI()
+        requireThat(p.status == "OFF completed", "actual finish must settle OFF")
+    } finally { p.controllerDriver?.stopAndJoin(1000); MicrophoneOwner.release() }
+}
+private fun failureStatusSurvivesQueuedCompletion() {
+    val p = Probe()
+    try {
+        p.prepare(); p.startCapture(false); p.completeCapture(false)
+        p.off(); p.joinCancelWorkers(); p.finishNow()
+        p.status = "genuine request failure"
+        p.drainUI()
+        requireThat(p.status == "genuine request failure", "completion callback hid genuine failure")
+    } finally { p.controllerDriver?.stopAndJoin(1000); MicrophoneOwner.release() }
+}
+private fun noLifecycleIsNotCleanupEvidence() {
+    val p = Probe() // A fresh service has no evidence for a previous process mic owner.
+    try {
+        check(MicrophoneOwner.claim())
+        p.status = "old owner still cleaning"
+        p.off(); p.joinCancelWorkers(); p.drainUI()
+        requireThat(p.status != "OFF completed", "absent lifecycle cannot prove another owner's cleanup")
+        requireThat(!MicrophoneOwner.claim(), "fresh OFF must not clear a previous mic reservation")
+    } finally { MicrophoneOwner.release() }
+}
+private fun existingCleanupFailureSurvivesFirstOff() {
+    val p = Probe()
+    try {
+        p.prepare(); p.startCapture(false); p.completeCapture(true); p.finishNow()
+        val failure = p.status
+        p.off(); p.joinCancelWorkers(); p.drainUI()
+        requireThat(p.status == failure, "first OFF hid existing cleanup failure")
+        requireThat(!MicrophoneOwner.claim(), "first OFF cleared failed capture reservation")
+    } finally { p.controllerDriver?.stopAndJoin(1000); MicrophoneOwner.release() }
+}
+private fun recreatedOffPreservesNativeFailure(withRemote: Boolean) {
+    val old = Probe()
+    val entered = CountDownLatch(1)
+    val release = CountDownLatch(1)
+    VoiceBridgeClient.cancel = { entered.countDown(); check(release.await(5, TimeUnit.SECONDS)) }
+    try {
+        old.prepare(); old.startCapture(false)
+        if (withRemote) {
+            old.cancellation.begin("failure-generation", "failure-operation")
+            old.off(); check(entered.await(2, TimeUnit.SECONDS))
+        }
+        old.completeCapture(true); old.finishNow()
+        val failure = old.status
+        old.destroyed()
+        val fresh = Probe()
+        requireThat(fresh.cancellation === old.cancellation, "recreated service must share cancellation and its lock")
+        fresh.off(); fresh.drainUI() // Immediate publication must not hide native failure either.
+        requireThat(fresh.status == failure, "recreated OFF immediately hid native cleanup failure: ${fresh.status}")
+        release.countDown(); old.joinCancelWorkers(); old.drainUI(); fresh.drainUI()
+        requireThat(fresh.status == failure, "late ACK/recreated OFF hid native cleanup failure: ${fresh.status}")
+        requireThat(old.playback.blocked(), "failed native owner must remain poisoned")
+        requireThat(!MicrophoneOwner.claim(), "recreated OFF/ACK cleared failed native owner's process lease")
+    } finally { release.countDown(); old.joinCancelWorkers(); old.controllerDriver?.stopAndJoin(1000) }
+}
+private fun recreatedOffPreservesRemoteFailure(remoteFirst: Boolean) {
+    val old = Probe()
+    val entered = CountDownLatch(1)
+    val release = CountDownLatch(1)
+    VoiceBridgeClient.cancel = {
+        entered.countDown(); check(release.await(5, TimeUnit.SECONDS))
+        throw java.io.IOException("remote cleanup unproven")
+    }
+    try {
+        old.prepare(); old.startCapture(false)
+        old.cancellation.begin("remote-failure-generation", "remote-failure-operation")
+        old.off(); check(entered.await(2, TimeUnit.SECONDS))
+        old.completeCapture(false); old.finishNow(); old.destroyed()
+        if (remoteFirst) { release.countDown(); old.joinCancelWorkers(); old.drainUI() }
+        val fresh = Probe()
+        if (remoteFirst) {
+            val failure = fresh.status
+            fresh.off(); fresh.joinCancelWorkers(); fresh.drainUI()
+            requireThat(fresh.status == failure, "recreated OFF hid remote cleanup failure")
+        } else {
+            fresh.off(); fresh.drainUI()
+            release.countDown(); old.joinCancelWorkers(); old.drainUI(); fresh.drainUI()
+        }
+        requireThat(fresh.cancellation.blocked(), "shared remote failure cannot clear on recreation")
+        requireThat(old.playback.blocked(), "failed remote owner must remain poisoned")
+        requireThat(fresh.status.contains("차단했습니다"), "late remote failure must remain visible")
+        requireThat(!MicrophoneOwner.claim(), "remote uncertainty must retain process lease")
+    } finally { release.countDown(); old.joinCancelWorkers(); old.controllerDriver?.stopAndJoin(1000) }
+}
+private fun legacyAndTokenLeasesRemainExclusive() {
+    val p = Probe()
+    try {
+        requireThat(MicrophoneOwner.claim(), "legacy owner must still claim")
+        requireThat(!MicrophoneOwner.claim(), "legacy owner must remain exclusive")
+        MicrophoneOwner.release()
+        p.prepare(); p.startCapture(false)
+        MicrophoneOwner.release() // A legacy caller does not own the service's token.
+        requireThat(!MicrophoneOwner.claim(), "legacy release cleared a token-owned lease")
+        val retired = Probe()
+        retired.releaseOwnLeaseForTest()
+        requireThat(!MicrophoneOwner.claim(), "foreign service token cleared the current lease")
+        p.completeCapture(false); p.finishNow()
+        requireThat(MicrophoneOwner.claim(), "token release must permit the legacy caller afterward")
+    } finally { p.controllerDriver?.stopAndJoin(1000) }
+}
+private fun recreatedOffWhileRemotePending() {
+    val old = Probe()
+    val release = CountDownLatch(1)
+    val entered = CountDownLatch(1)
+    val calls = java.util.concurrent.atomic.AtomicInteger()
+    VoiceBridgeClient.cancel = { calls.incrementAndGet(); entered.countDown(); check(release.await(5, TimeUnit.SECONDS)) }
+    try {
+        old.prepare(); old.startCapture(false)
+        old.cancellation.begin("pending-generation", "pending-operation")
+        old.off(); check(entered.await(2, TimeUnit.SECONDS))
+        old.completeCapture(false); old.finishNow(); old.destroyed()
+        val fresh = Probe()
+        requireThat(fresh.cancellation === old.cancellation, "cancellation must be process-shared")
+        fresh.off(); fresh.drainUI()
+        requireThat(fresh.cancellation.blocked(), "recreation lost pending remote ACK")
+        requireThat(!MicrophoneOwner.claim(), "recreated OFF released before shared ACK")
+        release.countDown(); old.joinCancelWorkers(); old.drainUI(); fresh.drainUI()
+        requireThat(calls.get() == 1, "recreation duplicated original remote cancellation")
+        requireThat(!fresh.cancellation.blocked(), "actual old ACK must clear shared pending gate")
+        requireThat(MicrophoneOwner.claim(), "old lifecycle plus ACK must still release its own lease")
+    } finally { release.countDown(); old.joinCancelWorkers(); old.controllerDriver?.stopAndJoin(1000) }
+}
+private fun oldAckAfterRecreatedStart() {
+    val old = Probe()
+    val next = Probe()
+    VoiceBridgeClient.cancel = {}
+    try {
+        old.prepare(); old.startCapture(false)
+        val scope = old.cancellation.begin("old-generation", "old-operation")
+        old.off(); old.joinCancelWorkers(); old.completeCapture(false); old.finishNow(); old.destroyed()
+        next.prepare(); next.startCapture(false)
+        val newScope = next.cancellation.begin("next-generation", "next-operation")
+        val status = next.status
+        old.lateRemoteAck(scope); old.republish(); old.drainUI()
+        requireThat(next.status == status, "late old ACK/status replaced recreated START")
+        requireThat(!MicrophoneOwner.claim(), "late old settlement released recreated service's lease")
+        requireThat(next.cancellation.cancel() === newScope, "old ACK touched newer request authority")
+        old.lateRemoteAck(scope)
+        requireThat(next.cancellation.blocked(), "old ACK incorrectly cleared new shared pending scope")
+        next.cancellation.acknowledge(newScope, true)
+        next.completeCapture(false); next.finishNow()
+        requireThat(MicrophoneOwner.claim(), "new owner's own proven finish must release")
+    } finally { old.controllerDriver?.stopAndJoin(1000); next.controllerDriver?.stopAndJoin(1000) }
+}
+private fun releaseChecksActualOwnerAtSettlement() {
+    val old = Probe()
+    val next = Probe()
+    val release = CountDownLatch(1)
+    val entered = CountDownLatch(1)
+    VoiceBridgeClient.cancel = { entered.countDown(); check(release.await(5, TimeUnit.SECONDS)) }
+    try {
+        old.prepare(); old.startCapture(false)
+        val scope = old.cancellation.begin("handoff-generation", "handoff-operation")
+        old.off(); check(entered.await(2, TimeUnit.SECONDS))
+        old.completeCapture(false); old.finishNow(); old.destroyed()
+        // Adversarial ownership handoff, NOT a claimed reachable production ordering:
+        // independently confirm ACK and return the old lease, leaving its settlement delayed.
+        // This isolates the actual release edge from its instance-local pending snapshot.
+        old.cancellation.acknowledge(scope, true)
+        old.releaseOwnLeaseForTest()
+        next.prepare(); next.startCapture(false)
+        val status = next.status
+        release.countDown(); old.joinCancelWorkers(); old.republish(); old.drainUI()
+        requireThat(!MicrophoneOwner.claim(), "old pending settlement released a different service's process lease")
+        requireThat(next.status == status, "old delayed settlement replaced new owner UI")
+        next.completeCapture(false); next.finishNow()
+        requireThat(MicrophoneOwner.claim(), "current service must release its own lease")
+    } finally { release.countDown(); old.joinCancelWorkers(); old.controllerDriver?.stopAndJoin(1000); next.controllerDriver?.stopAndJoin(1000) }
+}
+fun main(args: Array<String>) {
+    val nativeTests = if (System.getProperty("duplex.native") == "true")
+        listOf("clean", "clean-before", "unknown", "off", "close-failed", "off-before-cancel").map { outcome ->
+            "production service + sink + real JNI cancellation: $outcome" to { Probe().nativeDuplexService(outcome) }
+        } else emptyList()
+    val tests = nativeTests + listOf<Pair<String, () -> Unit>>(
+        "production duplex service factory rejects unsupported stop-oracle session" to { Probe().duplexService() },
+        "OFF during capture: no poison; lease retained until lifecycle finish" to { offBeforeCaptureCleanup(false, false, false) },
+        "repeated OFF during capture remains idempotent" to { offBeforeCaptureCleanup(false, false, true) },
+        "OFF during stop monitor defers capture cleanup" to { offBeforeCaptureCleanup(true, false, false) },
+        "actual capture release failure stays blocked" to { offBeforeCaptureCleanup(false, true, false) },
+        "cleanup before OFF positive control" to ::cleanBeforeOff,
+        "controller join failure maps to same generic status without playback failure" to ::controllerCleanupIsNotPlaybackFailure,
+        "connected controller renews repeatedly while capture active" to ::connectedHeartbeatDuringCapture,
+        "remote ACK before local finish" to { remoteAndLocalOrdering(true, false, false) },
+        "local finish before remote ACK" to { remoteAndLocalOrdering(false, false, false) },
+        "repeated OFF with original ACK pending" to { remoteAndLocalOrdering(false, true, false) },
+        "remote failure before local finish" to { remoteAndLocalOrdering(true, false, true) },
+        "remote failure after local finish" to { remoteAndLocalOrdering(false, true, true) },
+        "capture failure followed by clean remote ACK" to { remoteAndLocalOrdering(false, true, false, true) },
+        "queued OFF cannot overwrite new start" to { staleUiAfterNewStart(false) },
+        "retired service cannot overwrite recreated service" to { staleUiAfterNewStart(true) },
+        "dead thread without cleanup proof stays pending" to ::deadThreadIsNotCleanupEvidence,
+        "queued completion preserves genuine failure status" to ::failureStatusSurvivesQueuedCompletion,
+        "fresh service lacks evidence for previous mic cleanup" to ::noLifecycleIsNotCleanupEvidence,
+        "first OFF preserves existing cleanup failure" to ::existingCleanupFailureSurvivesFirstOff,
+        "recreated OFF preserves native failure" to { recreatedOffPreservesNativeFailure(false) },
+        "recreated OFF and late shared ACK preserve native failure" to { recreatedOffPreservesNativeFailure(true) },
+        "recreated OFF shares pending remote cancellation" to ::recreatedOffWhileRemotePending,
+        "old ACK after recreated START preserves new lease and cancellation scope" to ::oldAckAfterRecreatedStart,
+        "delayed settlement verifies actual microphone owner at release" to ::releaseChecksActualOwnerAtSettlement,
+        "recreated OFF preserves prior remote failure" to { recreatedOffPreservesRemoteFailure(true) },
+        "recreated OFF preserves late remote failure" to { recreatedOffPreservesRemoteFailure(false) },
+        "legacy and token leases remain exclusive" to ::legacyAndTokenLeasesRemainExclusive
+    )
+    if (args.isNotEmpty()) {
+        val (name, test) = tests[args.single().toInt()]
+        try { test(); println("PASS $name") }
+        catch (e: Throwable) { println("FAIL $name: ${e.javaClass.simpleName}: ${e.message}"); throw e }
+        return
+    }
+    // Sticky process failures cannot be reset between cases in production. Fork one JVM
+    // per case; all service recreations *inside* that case share the exact singleton.
+    var failures = 0
+    for (index in tests.indices) {
+        val exit = ProcessBuilder(System.getProperty("java.home") + "/bin/java", "-Xmx96m",
+            "-Dduplex.native=" + System.getProperty("duplex.native", "false"),
+            "-Djava.library.path=" + System.getProperty("java.library.path"),
+            "-Djava.io.tmpdir=" + System.getProperty("java.io.tmpdir"), "-cp",
+            System.getProperty("java.class.path"), "com.mist.connect.ProbeKt", index.toString())
+            .inheritIO().start().waitFor()
+        if (exit != 0) failures++
+    }
+    println("RESULT ${tests.size - failures}/${tests.size} passed")
+    check(failures == 0) { "$failures offline cleanup regressions failed" }
+}

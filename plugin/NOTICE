@@ -1,0 +1,13 @@
+Third-party components and licences
+
+This project includes or depends on:
+
+- sherpa-onnx (Apache-2.0) and ONNX Runtime (MIT) — bundled as a prebuilt AAR in the
+  companion app, with licence texts under android/app/src/main/assets/licenses/
+- Vosk Android and the small Korean model (Apache-2.0) — speech recognition
+- Shizuku API/provider (Apache-2.0) — optional privileged helper
+- AndroidX / Jetpack Compose (Apache-2.0)
+- EfficientWord-Net (Apache-2.0) — wake-word features
+
+The companion app's LICENSE file refers to the upstream MistConnect project it was derived
+from. See android/LICENSE and android/app/src/main/assets/licenses/ for the original notices.

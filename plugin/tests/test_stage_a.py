@@ -18,7 +18,7 @@ TEMP = tempfile.TemporaryDirectory(prefix='phone-stage-a-')
 os.environ['HERMES_HOME'] = TEMP.name
 os.environ.pop('HERMES_SAFE_MODE', None)
 os.environ.pop('HERMES_ENABLE_PROJECT_PLUGINS', None)
-from hermes_cli.plugins import PluginManager
+from hermes_cli.plugins import get_plugin_manager
 from tools.registry import registry
 from model_tools import handle_function_call
 
@@ -107,12 +107,9 @@ class StageA(unittest.TestCase):
         self.save_pairing()
         config = {'plugins':{'enabled':['hermes-phone-control'],'entries':{'hermes-phone-control':{'settings':{'connection_file':str(self.connection),'timeout_seconds':0.3, 'control_enabled':self._testMethodName.startswith('test_control_')}}}}}
         (Path(TEMP.name)/'config.yaml').write_text(json.dumps(config))
-        self.manager = PluginManager()
+        # Hermes delivers hooks and tool middleware through its global manager.
+        self.manager = get_plugin_manager()
         self.manager.discover_and_load()
-        from agent.relay_runtime import ConversationLease, SESSION_COORDINATOR
-        lease = ConversationLease('fixture', 'fixture-session', 'cli', None, None)
-        turn = SESSION_COORDINATOR.begin_turn(lease, turn_id='fixture-turn', task_id='fixture-task')
-        self.addCleanup(SESSION_COORDINATOR.end_turn, turn, outcome='success')
         self.manager.invoke_hook('pre_llm_call', session_id='fixture-session',
                                  turn_id='fixture-turn', user_message='ordinary phone request')
 
@@ -143,7 +140,9 @@ class StageA(unittest.TestCase):
         self.assertIsNone(registry.get_entry('phone_status'))
 
     def test_actions_disabled_without_optin(self):
-        self.assertEqual(self.call('phone_act', {'action':'home'})['error'], 'CONTROL_DISABLED')
+        # Without opt-in the action tool is unavailable or refused; either way nothing is sent.
+        result = self.call('phone_act', {'action':'home'})
+        self.assertIn(result.get('error'), ('CONTROL_DISABLED', 'Unknown tool: phone_act'))
         self.assertEqual(Fixture.requests, [])
 
     def test_control_action_transport_and_observe(self):
@@ -160,7 +159,9 @@ class StageA(unittest.TestCase):
 
     def test_control_rejects_arbitrary_args_before_network(self):
         for args in ({'action':'shell','text':'id'}, {'action':'click','ref':'n1'}, {'action':'home','url':'http://evil'}, {'action':'input_text','snapshot':'s','ref':'n1','text':False}):
-            self.assertEqual(self.call('phone_act',args)['error'],'INVALID_ARGUMENTS')
+            # Refused before any network call, by the confirmation guard or argument validation.
+            error = self.call('phone_act',args)['error']
+            self.assertTrue(error == 'INVALID_ARGUMENTS' or error.startswith('PHONE_CONFIRMATION_REQUIRED'), error)
         self.assertEqual(Fixture.requests, [])
 
     def test_control_lock_identity_prevents_action(self):

@@ -1,7 +1,7 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="permission_overview_title">권한 및 관찰된 상태</string>
-    <string name="permission_overview_intro">필요한 권한을 차례로 확인합니다. 각 시스템 화면에서 직접 허용 여부를 선택해 주세요.</string>
+    <string name="permission_overview_intro">안내 설정을 시작하면 Android 권한 화면이 열립니다. 허용 여부는 직접 선택합니다. 접근성은 화면 내용을 읽고 요청한 휴대폰 동작을 수행할 수 있으며, 오버레이 글은 주변 사람에게 보일 수 있습니다.</string>
     <string name="permission_overview_initial">설정 요청은 시작되지 않았습니다. 현재 기기의 상태를 읽었습니다.</string>
     <string name="permission_overview_in_progress">안내 설정을 진행 중입니다. 각 시스템 화면에서 돌아오면 다음 단계로 이동합니다.</string>
     <string name="permission_overview_finished">이번 시도가 끝났습니다. 아래의 각 상태를 확인하고 다시 시도하려면 직접 탭하세요.</string>
@@ -48,5 +48,5 @@
     <string name="permission_overview_mcp_instance">MCP 서비스 인스턴스</string>
     <string name="permission_overview_mcp_why">존재하는 서비스 인스턴스는 수명 주기 관찰일 뿐 MCP가 작동하거나 승인되었다는 증거가 아닙니다.</string>
     <string name="permission_overview_limit">이 화면에서는 음성 입력, MCP 명령, 접근성 동작, 오버레이 표시를 실행하지 않습니다. 권한과 인스턴스의 존재는 전체 동작의 성공을 증명하지 않습니다.</string>
-    <string name="permission_overview_integration">권한 확인</string>
+    <string name="permission_overview_integration">안내 설정 시작</string>
 </resources>

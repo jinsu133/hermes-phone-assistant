@@ -1,49 +1,56 @@
 package com.mist.connect
 
-import android.animation.ValueAnimator
+import android.animation.TimeAnimator
 import android.content.Context
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Color
-import android.graphics.Paint
 import android.graphics.Matrix
+import android.graphics.Paint
 import android.graphics.PixelFormat
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
+import android.graphics.RadialGradient
+import android.graphics.Rect
 import android.graphics.RectF
+import android.graphics.Shader
 import android.graphics.SweepGradient
 import android.graphics.drawable.GradientDrawable
 import android.hardware.display.DisplayManager
 import android.hardware.input.InputManager
 import android.os.Build
-import android.text.TextUtils
+import android.os.SystemClock
 import android.view.Display
 import android.view.Gravity
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
-import android.view.animation.LinearInterpolator
 import android.widget.LinearLayout
 import android.widget.TextView
 
 /** One noninteractive window, application context only. Removal uncertainty poisons
  * this adapter rather than permitting a replacement window. No gesture/action API.
  *
- * Visual contract follows the reviewed capsule design in `docs/VOICE_OVERLAY.md`
- * (rounded dark capsule, three vertical bars on the left, text on the right) with the
- * owner-specified position change: the capsule centre sits at 2/8 of the display height
- * instead of the design's top 8dp gap. */
+ * The window has one fixed size for a display (D-013): state, status text and answer length
+ * never resize or move it. A long answer scrolls inside a three-line viewport, driven by the
+ * position of the reply audio that is actually playing (D-014); it pauses when playback stalls
+ * and stops when playback ends or is replaced. The capsule centre sits at 2/8 of the display.
+ */
 internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayController.Window {
     companion object {
         const val CARD_WIDTH_DP = 340
+        const val CARD_HEIGHT_DP = 96
         const val CORNER_DP = 28
-        const val PAD_H_DP = 16
+        const val PAD_H_DP = 14
         const val PAD_V_DP = 10
-        const val BARS_W_DP = 28
-        const val BARS_H_DP = 30
+        const val MASCOT_DP = 72
         const val TEXT_SP = 14f
-        const val ORBIT_PERIOD_MS = 2000L
-        const val ORBIT_DOT_DP = 6
-        const val BORDER_DP = 1.5f
-        const val BACKGROUND_ALPHA = 0.72f
+        const val FADE_DP = 14
+        const val SCROLL_TICK_MS = 40L
         const val WINDOW_ALPHA_CEILING = 0.75f
+        /** Cream matte shared by the card and the mascot's faded edge. */
+        val MATTE = Color.rgb(253, 236, 217)
+        val INK = Color.rgb(38, 34, 31)
         /** Owner-confirmed anchor: 2/8 from the top of the display. */
         const val ANCHOR_NUMERATOR = 2
         const val ANCHOR_DENOMINATOR = 8
@@ -57,30 +64,28 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
     private val manager = context.getSystemService(WindowManager::class.java)
     private var view: Capsule? = null
     private var label: TextView? = null
-    private var bars: Bars? = null
+    private var mascot: Mascot? = null
     private var showingFinal = false
+    private var playing = false
+    private var follower: Runnable? = null
     private var poisoned = false
     private fun dp(value: Int) = (value * context.resources.displayMetrics.density).toInt()
 
+    /** Fixed size for this display; also used by the debug preview. */
+    internal fun cardWidth(): Int = OverlaySizing.width(context.resources.displayMetrics.widthPixels,
+        dp(CARD_WIDTH_DP), dp(16))
+    internal fun cardHeight(): Int = dp(CARD_HEIGHT_DP)
+
     override fun show(title: String): Boolean {
         if (poisoned) return false
-        val existing = view
-        if (existing != null) {
+        if (view != null) {
             updateText(title)
-            return true
+            return true // Only pixels change; neither window dimensions nor position changes.
         }
-        val declared = dp(CARD_WIDTH_DP)
-            .coerceAtMost(context.resources.displayMetrics.widthPixels - dp(16))
-            .coerceAtLeast(dp(120))
         val capsule = build()
         updateText(title)
-        capsule.measure(
-            View.MeasureSpec.makeMeasureSpec(declared, View.MeasureSpec.EXACTLY),
-            View.MeasureSpec.makeMeasureSpec(0, View.MeasureSpec.UNSPECIFIED)
-        )
-        val height = capsule.measuredHeight.coerceAtLeast(1)
         view = capsule // retain ownership before add, including partial failure
-        try { manager.addView(capsule, params(declared, height)) } catch (_: RuntimeException) {
+        try { manager.addView(capsule, params(cardWidth(), cardHeight())) } catch (_: RuntimeException) {
             poisoned = true; hide(); return false
         }
         return true
@@ -89,15 +94,44 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
     private fun updateText(text: String) {
         val target = label ?: return
         if (target.text.toString() == text) return
-        target.animate().cancel()
-        target.translationY = 0f
-        target.alpha = 1f
-        target.text = text
-        if (showingFinal) {
-            target.animate().translationY(-dp(12).toFloat()).alpha(0f)
-                .setStartDelay(4500L).setDuration(700L).start()
-        }
+        stopFollowing()
+        target.scrollTo(0, 0)
+        target.text = text // Never truncated: overflow scrolls within the fixed viewport.
+        if (showingFinal) startFollowing()
     }
+
+    /** Moves the answer with the played fraction of the reply audio; holds still otherwise. */
+    private fun startFollowing() {
+        val target = label ?: return
+        val task = object : Runnable {
+            override fun run() {
+                if (label !== target || follower !== this) return
+                val fraction = if (playing) PlaybackProgress.fraction() else -1f
+                if (fraction >= 0f) {
+                    val layout = target.layout
+                    if (layout != null) {
+                        val viewport = target.height - target.totalPaddingTop - target.totalPaddingBottom
+                        val goal = OverlayScroll.offset(fraction, layout.height, viewport, target.lineHeight)
+                        val step = goal - target.scrollY
+                        // Ease toward the goal so lines glide upward instead of jumping.
+                        if (step != 0) target.scrollTo(0, target.scrollY +
+                            if (kotlin.math.abs(step) <= 1) step else step / 4)
+                    }
+                }
+                target.postDelayed(this, SCROLL_TICK_MS)
+            }
+        }
+        follower = task
+        target.post(task)
+    }
+
+    private fun stopFollowing() {
+        follower?.let { label?.removeCallbacks(it) }
+        follower = null
+    }
+
+    /** Also used by the debug Activity to cancel its pending work on destruction. */
+    internal fun stopPreview() = stopFollowing()
 
     private fun build(): Capsule = Capsule(context).apply {
         orientation = LinearLayout.HORIZONTAL
@@ -105,27 +139,27 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
         setPadding(dp(PAD_H_DP), dp(PAD_V_DP), dp(PAD_H_DP), dp(PAD_V_DP))
         isClickable = false; isLongClickable = false; isFocusable = false
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
-        // Background alpha is independent of the window touch-safety alpha, as in the design.
+        // Opaque matte inside the window: the one window alpha composites BOTH mascot and card.
         background = GradientDrawable().apply {
-            setColor(Color.argb((BACKGROUND_ALPHA * 255).toInt(), 24, 24, 24))
+            setColor(MATTE)
             cornerRadius = dp(CORNER_DP).toFloat()
         }
-        bars = Bars(context)
-        addView(bars, LinearLayout.LayoutParams(dp(BARS_W_DP), dp(BARS_H_DP)))
-        val lines = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(12), 0, 0, 0)
-        }
+        mascot = Mascot(context)
+        addView(mascot, LinearLayout.LayoutParams(dp(MASCOT_DP), dp(MASCOT_DP)))
         label = TextView(context).apply {
-            setTextColor(Color.WHITE)
+            setTextColor(INK)
             textSize = TEXT_SP
-            maxLines = 3
-            ellipsize = TextUtils.TruncateAt.END
+            setLineSpacing(0f, 1.05f)
+            setPadding(dp(10), 0, 0, 0)
+            gravity = Gravity.CENTER_VERTICAL or Gravity.START
+            // Lines leaving the top fade out instead of being cut.
+            isVerticalFadingEdgeEnabled = true
+            setFadingEdgeLength(dp(FADE_DP))
             isClickable = false; isLongClickable = false; isFocusable = false
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             setTextIsSelectable(false)
-        }.also { lines.addView(it) }
-        addView(lines, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        addView(label, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
     }
 
     private fun params(width: Int, height: Int): WindowManager.LayoutParams {
@@ -136,7 +170,7 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
         val y = (anchor - height / 2 - frameTop).coerceAtLeast(0)
         return WindowManager.LayoutParams(
             width,
-            WindowManager.LayoutParams.WRAP_CONTENT,
+            height,
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
             WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
@@ -166,11 +200,12 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
 
     override fun hide() {
         val owned = view ?: return
-        label?.animate()?.cancel()
+        stopFollowing()
         try {
             manager.removeViewImmediate(owned)
             view = null
             label = null
+            mascot = null
         } catch (_: RuntimeException) {
             // Keep the handle and never add another window when removal is uncertain.
             poisoned = true
@@ -178,12 +213,16 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
     }
 
     /** Presentation-only hints from the controller; they never gate voice authority. */
-    override fun speaking(active: Boolean) { bars?.speaking(active) }
+    override fun speaking(active: Boolean) { playing = active }
     override fun recognizing(active: Boolean) { }
-    override fun finalPreview(active: Boolean) { showingFinal = active }
-    override fun visualPhase(phase: UiPhase) { view?.visualPhase(phase) }
+    override fun finalPreview(active: Boolean) {
+        if (active == showingFinal) return
+        showingFinal = active
+        if (active) startFollowing() else stopFollowing()
+    }
+    override fun visualPhase(phase: UiPhase) { view?.visualPhase(phase); mascot?.visualPhase(phase) }
 
-    /** Animated, state-colored conic border; owns no voice or permission authority. */
+    /** Rotating glow whose colour and speed are specific to each state. */
     private inner class Capsule(context: Context) : LinearLayout(context) {
         private val border = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             style = Paint.Style.STROKE
@@ -191,30 +230,29 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
         }
         private val rect = RectF()
         private val rotation = Matrix()
-        private var orbit: ValueAnimator? = null
-        private var phase = 0f
-        private var tint = Color.rgb(94, 165, 255)
+        private var orbit: TimeAnimator? = null
+        private var angle = 0f
+        private var state = UiPhase.WAKE_WAIT
+        private var tint = OverlayGlow.color(state)
+        private var shader: SweepGradient? = null
+        private var shaderTint = 0
+        private var shaderSize = 0L
 
         init {
             setWillNotDraw(false)
             setLayerType(View.LAYER_TYPE_SOFTWARE, null)
         }
 
-        fun visualPhase(state: UiPhase) {
-            val next = when (state) {
-                UiPhase.CAPTURING -> Color.rgb(57, 224, 188)
-                UiPhase.SUBMITTING, UiPhase.WAITING_REPLY -> Color.rgb(175, 118, 255)
-                UiPhase.PLAYING -> Color.rgb(255, 168, 75)
-                UiPhase.FOLLOW_UP -> Color.rgb(101, 217, 255)
-                else -> Color.rgb(94, 165, 255)
-            }
-            if (next != tint) { tint = next; invalidate() }
+        fun visualPhase(next: UiPhase) {
+            state = next
+            val color = OverlayGlow.color(next)
+            if (color != tint) { tint = color; invalidate() }
             if (orbit != null) return
-            orbit = ValueAnimator.ofFloat(0f, 1f).apply {
-                duration = ORBIT_PERIOD_MS
-                repeatCount = ValueAnimator.INFINITE
-                interpolator = LinearInterpolator()
-                addUpdateListener { phase = it.animatedValue as Float; invalidate() }
+            orbit = TimeAnimator().apply {
+                setTimeListener { _, _, delta ->
+                    angle = (angle + 360f * delta / OverlayGlow.periodMs(state)) % 360f
+                    invalidate()
+                }
                 start()
             }
         }
@@ -224,13 +262,17 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
             if (orbit == null) return
             val inset = border.strokeWidth * 1.5f
             rect.set(inset, inset, width - inset, height - inset)
-            val shader = SweepGradient(width / 2f, height / 2f,
-                intArrayOf(Color.TRANSPARENT, tint, Color.WHITE, tint, Color.TRANSPARENT), null)
-            rotation.setRotate(phase * 360f, width / 2f, height / 2f)
-            shader.setLocalMatrix(rotation)
-            border.shader = shader
-            border.setShadowLayer(dp(4).toFloat(), 0f, 0f, tint)
-            canvas.drawRoundRect(rect, dp(CORNER_DP).toFloat(), dp(CORNER_DP).toFloat(), border)
+            val size = width.toLong() shl 32 or height.toLong()
+            val sweep = shader.takeIf { shaderTint == tint && shaderSize == size }
+                ?: SweepGradient(width / 2f, height / 2f,
+                    intArrayOf(Color.TRANSPARENT, tint, Color.WHITE, tint, Color.TRANSPARENT), null)
+                    .also { shader = it; shaderTint = tint; shaderSize = size }
+            rotation.setRotate(angle, width / 2f, height / 2f)
+            sweep.setLocalMatrix(rotation)
+            border.shader = sweep
+            border.setShadowLayer(dp(5).toFloat(), 0f, 0f, tint)
+            val corner = dp(CORNER_DP).toFloat()
+            canvas.drawRoundRect(rect, corner, corner, border)
         }
 
         override fun onDetachedFromWindow() {
@@ -238,35 +280,45 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
         }
     }
 
-    /** Three vertical bars; they wave only while audio is actually playing. */
-    private class Bars(context: Context) : View(context) {
-        private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.LTGRAY
-            strokeCap = Paint.Cap.ROUND
+    /** Raster mascot driven only by the accepted service phase. Its edge fades into the card's
+     * matte, so no rectangular patch shows whatever the frame's own background tint is. */
+    private class Mascot(context: Context) : View(context) {
+        private val atlas = checkNotNull(BitmapFactory.decodeResource(resources, R.drawable.overlay_state_atlas))
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+        private val mask = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
         }
-        private var animation: ValueAnimator? = null
-        private var phase = 0f
-        fun speaking(active: Boolean) {
-            if (!active) { animation?.cancel(); animation = null; phase = 0f; invalidate(); return }
-            if (animation != null) return
-            animation = ValueAnimator.ofFloat(0f, 1f).apply {
-                duration = 640
-                repeatCount = ValueAnimator.INFINITE
-                addUpdateListener { phase = it.animatedValue as Float; invalidate() }
-                start()
-            }
+        private val src = Rect()
+        private val dst = RectF()
+        private var state = UiPhase.WAKE_WAIT
+        private var phaseStart = SystemClock.uptimeMillis()
+        init {
+            require(atlas.width == MascotPlayback.FRAMES * MascotPlayback.CELL &&
+                atlas.height == MascotPlayback.ROWS * MascotPlayback.CELL)
+        }
+        fun visualPhase(next: UiPhase) {
+            if (next == state) return
+            state = next; phaseStart = SystemClock.uptimeMillis(); invalidate()
+        }
+        override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+            super.onSizeChanged(w, h, oldw, oldh)
+            if (w <= 0 || h <= 0) return
+            mask.shader = RadialGradient(w / 2f, h / 2f, minOf(w, h) * 0.58f,
+                intArrayOf(Color.BLACK, Color.BLACK, Color.TRANSPARENT),
+                floatArrayOf(0f, 0.74f, 1f), Shader.TileMode.CLAMP)
         }
         override fun onDraw(canvas: Canvas) {
             super.onDraw(canvas)
-            paint.strokeWidth = width / 9f
-            for (i in 0..2) {
-                val wave = if (animation == null) 0.35f else
-                    (0.3 + 0.6 * kotlin.math.abs(kotlin.math.sin((phase * 2.0 + i * 0.6) * Math.PI))).toFloat()
-                val half = height * wave / 2f
-                val x = width * (i + 1) / 4f
-                canvas.drawLine(x, height / 2f - half, x, height / 2f + half, paint)
-            }
+            val frame = MascotPlayback.frame(state, SystemClock.uptimeMillis() - phaseStart)
+            val row = MascotPlayback.row(state)
+            val cell = MascotPlayback.CELL
+            src.set(frame * cell, row * cell, (frame + 1) * cell, (row + 1) * cell)
+            dst.set(0f, 0f, width.toFloat(), height.toFloat())
+            val layer = canvas.saveLayer(dst, null)
+            canvas.drawBitmap(atlas, src, dst, paint)
+            canvas.drawRect(dst, mask)
+            canvas.restoreToCount(layer)
+            if (isAttachedToWindow && isShown) postInvalidateDelayed(MascotPlayback.frameMillis(state))
         }
-        override fun onDetachedFromWindow() { speaking(false); super.onDetachedFromWindow() }
     }
 }

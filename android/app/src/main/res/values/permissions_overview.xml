@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="permission_overview_title">Permissions and observed status</string>
-    <string name="permission_overview_intro">Check the required permissions in order. You decide what to allow on each system screen.</string>
+    <string name="permission_overview_intro">Guided setup opens Android permission screens. You decide what to allow. Accessibility can read screen content and perform phone actions you request; overlay text can be visible to others.</string>
     <string name="permission_overview_initial">No setup request has started. Status was read from this device.</string>
     <string name="permission_overview_in_progress">Guided setup is in progress. Return from each system screen to continue.</string>
     <string name="permission_overview_finished">This attempt ended. Read the individual statuses below; retry only with another tap.</string>
@@ -48,5 +48,5 @@
     <string name="permission_overview_mcp_instance">MCP service instance</string>
     <string name="permission_overview_mcp_why">A present service instance is only a lifecycle observation, not proof that MCP is working or authorized.</string>
     <string name="permission_overview_limit">No voice capture, MCP command, accessibility action or overlay rendering is exercised here. Permissions and instance presence never establish end-to-end success.</string>
-    <string name="permission_overview_integration">Permissions overview</string>
+    <string name="permission_overview_integration">Start guided setup</string>
 </resources>

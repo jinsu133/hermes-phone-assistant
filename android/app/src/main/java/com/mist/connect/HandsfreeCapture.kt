@@ -37,7 +37,8 @@ internal class HandsfreeCapture(
         var totalSamples = 0L
         val capture = object : ByteArrayOutputStream() { fun wipe() { buf.fill(0); reset() } }
         var triggered = followup
-        val end = SpeechEndGate(if (followup) 10000 else 7000)
+        val end = SpeechEndGate(if (followup) 30000 else 7000)
+        var followupSpeechStarted = false
         var captureStartedAt = 0L
         var primary: Throwable? = null
         try {
@@ -49,7 +50,7 @@ internal class HandsfreeCapture(
             check(audio.recordingState == AudioRecord.RECORDSTATE_RECORDING)
             typedState(if (followup) ServiceUiPublication.CaptureEvent.FOLLOW_UP else ServiceUiPublication.CaptureEvent.WAKE_WAIT)
             if (triggered) captureStartedAt = android.os.SystemClock.elapsedRealtime()
-            state(if (followup) "이어 말하세요 · 10초 동안 기다립니다" else "듣기 ON · ‘헤이 헤르메스’ 대기")
+            state(if (followup) "이어 말하세요 · 30초 동안 기다립니다" else "듣기 ON · ‘헤이 헤르메스’ 대기")
             while (active()) {
                 if (triggered) end.checkWallTime(android.os.SystemClock.elapsedRealtime() - captureStartedAt)
                 val n = audio.read(block, 0, block.size, AudioRecord.READ_NON_BLOCKING)
@@ -95,8 +96,21 @@ internal class HandsfreeCapture(
                 } else {
                     detector.acceptStop(block,n)
                     if (detector.stopped) { VoiceDiagnostics.stops.incrementAndGet(); wasStopped = true; return ByteArray(0) }
-                    for (i in 0 until n) { val v=block[i].toInt(); capture.write(v and 255); capture.write((v ushr 8) and 255) }
                     val finished = end.accept(block,n,detector.endpointEvidence)
+                    if (followup && !followupSpeechStarted && end.hasSpeech()) {
+                        val first = (ringPos-ringSize+ring.size)%ring.size
+                        for (i in 0 until ringSize) { val v=ring[(first+i)%ring.size].toInt(); capture.write(v and 255); capture.write((v ushr 8) and 255) }
+                        ring.fill(0); ringSize = 0; followupSpeechStarted = true
+                    }
+                    if (!followup || followupSpeechStarted) {
+                        // The native STT input remains capped at 30 seconds. Never send
+                        // partial audio when that separate transport boundary is exceeded.
+                        if (capture.size().toLong() + n * 2L > SpeechEndGate.MAX_UTTERANCE_MS * 32L)
+                            throw SpeechEndGate.Rejected(SpeechEndGate.Decision.SAFETY_LIMIT)
+                        for (i in 0 until n) { val v=block[i].toInt(); capture.write(v and 255); capture.write((v ushr 8) and 255) }
+                    } else {
+                        for (i in 0 until n) { ring[ringPos] = block[i]; ringPos = (ringPos+1)%ring.size; ringSize = minOf(ringSize+1,ring.size) }
+                    }
                     // Decoder cost counts against the wall bound too. Neither a sample
                     // cap nor a stalled/noisy decoder may turn a clipped buffer into a request.
                     end.checkWallTime(android.os.SystemClock.elapsedRealtime() - captureStartedAt)

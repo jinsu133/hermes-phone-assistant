@@ -4,13 +4,21 @@ import threading
 import time
 import unicodedata
 
-PUBLIC_STATUS = {
-    'accepted': '에이전트가 답변을 준비하고 있습니다.',
-    'phone': '휴대폰 화면을 확인하며 작업하고 있습니다.',
-    'research': '자료를 조회하고 있습니다.',
-    'document': '문서와 코드 초안을 작성하거나 확인하고 있습니다.',
-    'calculation': '계산을 실행하고 있습니다.',
-}
+try:
+    from . import messages as _messages
+except ImportError:  # imported as a top-level module by the offline tests
+    import messages as _messages
+
+PUBLIC_STATUS = {kind: _messages.EN['status.' + kind]
+                 for kind in ('accepted', 'phone', 'research', 'document', 'calculation')}
+# Set by register() so spoken status follows the plugin locale (English by default).
+_CTX = None
+
+
+def public_status(kind):
+    return _messages.text(_CTX, 'status.' + kind)
+
+
 TOOL_STATUS = {
     'phone_observe': 'phone', 'phone_act': 'phone',
     'web_search': 'research', 'web_extract': 'research',
@@ -59,7 +67,7 @@ class VoiceEvents:
             self.last = now
             self.seen.add(kind)
             self.current = {'request_id': request, 'seq': self.seq,
-                            'kind': kind, 'text': PUBLIC_STATUS[kind],
+                            'kind': kind, 'text': public_status(kind),
                             'audio_id': secrets.token_urlsafe(18)}
             return dict(self.current)
 

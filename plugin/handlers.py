@@ -311,9 +311,8 @@ class Handlers:
         with self.link._lock:
             pending = self.link._pending or {}
             live = self.link.voice_request(pending.get('session_id'), pending.get('turn_id'))
-            turn = self.link._runtime_turn()
-            state, admitted = self.link._admission_owner(
-                (str(turn.lease.session_id), str(turn.turn_id))) if turn else ('none', None)
+            key = self.link.tool_turn_key.get()
+            state, admitted = self.link._admission_owner(key) if key else ('none', None)
             if (state != 'record' or admitted != voice_request
                     or (voice_request and live != voice_request)):
                 raise Denied('VOICE_OWNER_REQUIRED')
@@ -455,9 +454,8 @@ class Handlers:
                 with self.link._lock:
                     pending = self.link._pending or {}
                     live = self.link.voice_request(pending.get('session_id'), pending.get('turn_id'))
-                    turn = self.link._runtime_turn()
-                    state, admitted = self.link._admission_owner(
-                        (str(turn.lease.session_id), str(turn.turn_id))) if turn else ('none', None)
+                    key = self.link.tool_turn_key.get()
+                    state, admitted = self.link._admission_owner(key) if key else ('none', None)
                     if (state != 'record' or admitted != voice_request
                             or (voice_request and live != voice_request) or (pending and not voice_request)):
                         raise Denied('VOICE_OWNER_REQUIRED')

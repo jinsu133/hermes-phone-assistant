@@ -1,9 +1,9 @@
 name: hermes-phone-control
-version: "0.18.0"
+version: "0.19.0"
 description: "Voice-driven control of a paired Android phone through Hermes: spoken requests run through the existing conversation, permitted accessibility actions are executed and re-observed, and the verified result is spoken back. Android/Termux companion app required; same-device loopback transport only."
 author: ko_spell
 kind: standalone
-requires_hermes: ">=0.19"
+requires_hermes: ">=0.21"
 platforms:
   - linux
 provides_tools:
@@ -44,4 +44,46 @@ config_schema:
     type: bool
     default: false
     description: Allow the paired accessibility tools to act. The companion app must also grant its own control consent.
+  connection_file:
+    type: str
+    default: ""
+    description: Path of the private pairing file imported from the companion app (written by /phone_setup import). The file itself holds the device token; this setting holds only its path.
+  session_key:
+    type: str
+    default: ""
+    description: Gateway session route that voice requests join (for example agent:main:telegram:dm:<chat>). Leave empty for a local CLI session. Gateway delivery also needs plugins.entries.hermes-phone-control.allow_gateway_injection true.
+  locale:
+    type: str
+    choices: [en, ko]
+    default: en
+    description: Language of command replies, spoken status lines and voice-turn guidance.
+  stt_model:
+    type: str
+    default: on-device-ko
+    description: Model id for the on-device Android recognizer used for speech-to-text.
+  stt_language:
+    type: str
+    default: ko-KR
+    description: Language hint for the on-device Android recognizer.
+  voice_bind_port:
+    type: int
+    default: 5001
+    description: Loopback port of the voice bridge (0 picks a free port). The bind address is always 127.0.0.1.
+  timeout_seconds:
+    type: float
+    default: 5.0
+    description: Timeout for one request to the companion app's loopback control service.
+  voice_documents:
+    type: dict
+    default: {}
+    description: Optional alias-to-path allow-list of existing text documents the voice route may read.
+  learning_enabled:
+    type: bool
+    default: true
+    description: Keep a local, content-free record of which phone action plans succeeded, to propose reusable profiles.
+  distribution_audience:
+    type: str
+    choices: [family, external]
+    default: family
+    description: Deployment audience fence for speech settings.
 capabilities: []

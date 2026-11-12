@@ -3,7 +3,7 @@
     <string name="accessibility_desc">음성 요청에 따라 화면을 확인하고 사용자가 허용한 휴대폰 조작만 수행합니다.</string>
     <string name="voice_widget_description">Hermes 로컬 호출어 듣기 ON/OFF</string>
     <string name="home_heading">내가 제어하는 음성 도우미</string>
-    <string name="home_explanation">답변 후 10초 동안 이어 말할 수 있습니다. 스탑은 대화를 끝내고, 듣기 OFF는 듣기와 조작 연결을 종료합니다.</string>
+    <string name="home_explanation">답변 후 30초 동안 이어 말할 수 있습니다. 스탑은 대화를 끝내고, 듣기 OFF는 듣기와 조작 연결을 종료합니다.</string>
     <string name="diagnostics_heading">관측 상태와 상세 정보</string>
     <string name="diagnostics_service_note">최근 서비스 메시지 (원문 · 공개 필드는 정리 완료 증거가 아님): %1$s</string>
     <string name="status_accessibility">상태: %1$s. 다음 단계: %2$s</string>
@@ -220,4 +220,9 @@
     <string name="overlay_permission_settings">Android 표시 권한 설정</string>
     <string name="overlay_permission_separate">표시 선택을 저장했습니다. 권한은 별도이며 현재는 기존 알림을 사용합니다.</string>
     <string name="overlay_permission_failed">권한 설정을 열지 못했습니다. 기존 알림을 사용합니다.</string>
+    <string name="widget_title">Hermes Phone Assistant</string>
+    <string name="widget_listen_on">듣기 ON</string>
+    <string name="widget_listen_off">OFF</string>
+    <string name="widget_lock_settings">Extend Unlock 설정</string>
+    <string name="widget_recent_notice">최근 서비스 알림: %1$s</string>
 </resources>

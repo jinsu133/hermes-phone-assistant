@@ -83,6 +83,9 @@ class PermissionOverviewActivity : ComponentActivity() {
                 }
             }
         }
+        if (savedInstanceState == null && intent.getBooleanExtra(EXTRA_START_GUIDED, false)) {
+            startGuided()
+        }
     }
 
     override fun onResume() {
@@ -286,6 +289,7 @@ class PermissionOverviewActivity : ComponentActivity() {
     }
 
     companion object {
+        const val EXTRA_START_GUIDED = "start_guided_permissions"
         private const val KEY_INCOMPLETE = "permission_overview_incomplete"
         private fun unobserved() = PermissionAssessment.from(PermissionSnapshot(
             null, true, null, null, null, null, null, null, null, null, null

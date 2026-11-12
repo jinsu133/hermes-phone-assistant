@@ -179,6 +179,23 @@ class VoiceRequestService : Service() {
 
     override fun onBind(intent: Intent?): IBinder? = null
 
+    /** startForegroundService() obliges one startForeground() for EVERY start, including one
+     * this service refuses; otherwise Android kills the whole app. A running session keeps its
+     * microphone type; a refused cold start shows nothing and leaves the foreground at once. */
+    private fun honourForegroundStart(startId: Int, stop: Boolean) {
+        try {
+            if (running.get()) {
+                startForeground(NOTIFICATION, notification("음성 요청", status, true),
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
+            } else {
+                startForeground(NOTIFICATION, notification("음성 요청", status, false),
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
+                stopForeground(STOP_FOREGROUND_REMOVE)
+            }
+        } catch (_: RuntimeException) { /* Android refused; stopping below still applies. */ }
+        if (stop) stopSelf(startId)
+    }
+
     private var syntheticTrialStarted = false
     @Volatile private var activeSyntheticTrial: SourceSyntheticTrial? = null
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -242,13 +259,14 @@ class VoiceRequestService : Service() {
             VoiceDiagnostics.failed("start_busy", null,
                 "running=${running.get()} thread=${lifecycleThread?.isAlive == true} blocked=${playback.blocked()}")
             Log.w("VoiceRequest", "start refused: running=${running.get()} thread=${lifecycleThread?.isAlive == true} blocked=${playback.blocked()}")
+            honourForegroundStart(startId, stop = false)
             return START_NOT_STICKY
         }
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             refuseUi(ServiceUiPublication.Blocker.MIC_PERMISSION)
             VoiceDiagnostics.failed("start_mic_permission", null)
             status = "마이크 권한이 필요합니다."
-            stopSelf(startId)
+            honourForegroundStart(startId, stop = true)
             return START_NOT_STICKY
         }
         val prefs = getSharedPreferences("lc_config", MODE_PRIVATE)
@@ -257,7 +275,7 @@ class VoiceRequestService : Service() {
             refuseUi(ServiceUiPublication.Blocker.PAIRING_MISSING)
             VoiceDiagnostics.failed("start_token", null)
             status = "음성 연결 파일을 먼저 저장하고 가져와야 합니다."
-            stopSelf(startId)
+            honourForegroundStart(startId, stop = true)
             return START_NOT_STICKY
         }
         normalStreaming = prefs.getBoolean("voice_streaming", false) // explicit opt-in, never Intent-controlled
@@ -266,13 +284,13 @@ class VoiceRequestService : Service() {
         if (controllerTrial && trialTransport == null) {
             refuseUi(ServiceUiPublication.Blocker.PROTOCOL_UNSUPPORTED)
             status = "시험 호스트 인증 준비가 없어 시작하지 않았습니다"
-            stopSelf(startId)
+            honourForegroundStart(startId, stop = true)
             return START_NOT_STICKY // Requested trial NEVER falls back to buffered operation.
         }
         if (!MicrophoneOwner.claim(microphoneLease)) {
             refuseUi(ServiceUiPublication.Blocker.MIC_BUSY)
             status = "다른 기능이 마이크를 사용 중입니다."
-            stopSelf(startId)
+            honourForegroundStart(startId, stop = true)
             return START_NOT_STICKY
         }
         if (trialTransport != null || normalStreaming) {
@@ -290,7 +308,7 @@ class VoiceRequestService : Service() {
             MicrophoneOwner.release(microphoneLease)
             refuseUi(ServiceUiPublication.Blocker.CLEANUP_UNCERTAIN)
             status = "이전 재생 정리가 확인되지 않아 시작하지 않았습니다"
-            stopSelf(startId)
+            honourForegroundStart(startId, stop = true)
             return START_NOT_STICKY
         }
         synchronized(cancellation) {

@@ -248,8 +248,6 @@ def _selection(value, audience, kind):
         except (ValueError, AttributeError): raise ValueError('reference_invalid') from None
         if canonical != reference['id']: raise ValueError('reference_invalid')
         if audience == 'external' and reference['scope'] != 'user': raise ValueError('external_reference_required')
-    if provider == 'family-vertex' and (audience != 'family' or reference['scope'] != 'family'):
-        raise ValueError('family_only')
     if provider == 'android-native' and (kind != 'stt' or value['model'] not in (None,'on-device-ko')
                                        or value['language'] not in (None,'ko','ko-KR')):
         raise ValueError('android_option_unsupported')

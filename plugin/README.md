@@ -2,10 +2,24 @@
 
 This is the Hermes plugin subdirectory of the phone-native assistant. It pairs with an Android companion on the same phone over authenticated loopback. Hermes tools can request phone observation and bounded actions through the companion's MCP service; the Android app retains its own permission, device-lock and confirmation gates. ADB is not the production action path.
 
-The plugin requires Hermes and the companion on the same Android/Termux device. The default manifest configuration leaves voice and control disabled until enabled by the operator. Microphone, accessibility and optional overlay permission require explicit Android consent. The model and speech providers configured by the operator may send data off-device and may incur charges.
+The plugin requires Hermes and the companion on the same Android/Termux device. The default manifest configuration leaves voice and control disabled until enabled by the operator. Microphone, accessibility and optional overlay permission require explicit Android consent.
 
-## Review status
+## Setup
 
-This is a preview, not a claim of catalog admission. Local validation reported warnings for internal Hermes APIs and operations involving process access and Python compilation/execution. The existing local pairing flow also reads an app-exported credential bundle. The project must reconcile these details with current catalog admission rules before a listing is represented as compliant. See the repository root for the Android source and license notices.
+1. Install the companion app and grant microphone and accessibility access on the phone.
+2. Import the pairing file the app exports: `/phone_setup import <file>`.
+3. Pick a text-to-speech engine in Hermes (`hermes tools` → text to speech). With a Nous Portal subscription, **Nous Subscription** uses the Tool Gateway and needs no separate key.
+4. For a messaging-gateway session, set `session_key` and `plugins.entries.hermes-phone-control.allow_gateway_injection: true`; leave `session_key` empty for a local CLI session.
+5. Enable `voice_enabled` and/or `control_enabled` in the plugin settings, then `/voicelink on`.
 
-Run `hermes plugins validate` against this directory on a compatible Hermes installation. Run device-specific tests on Termux, not Windows; Linux-only system calls used for safe file handling are not supported by Windows Python.
+Command replies, spoken status lines and voice-turn guidance are English by default; set `locale: ko` for Korean.
+
+## What to know before enabling it
+
+- **Phone actions run without per-action Hermes approval.** Once `control_enabled` is on, `phone_act` and `phone_run_plan` act on the phone without Hermes' tool-approval prompt. Verified everyday actions (navigation, search, typing, selection) run directly. Other supported actions, including a payment, the final send of a message and placing a call, wait for a confirmation on the phone (text request) or an explicit spoken "allow" (voice request); silence is never approval. Transfers, trades and identity verification are left to the user.
+- **Sandboxed Python runner.** During a voice turn the model can run a short Python program only after the code has been read aloud and approved by voice. It runs in a separate process with an empty environment, CPU/memory/file-size limits and a seccomp filter that denies file, network and process-creation system calls (Linux/aarch64 only). It is not a general terminal and not protection against kernel vulnerabilities.
+- **Where voice data goes.** Speech is recognised on the phone by Android's on-device recognizer through this plugin's own transcription provider; the plugin does not upload audio. The recognised text joins your Hermes conversation and goes to the model provider you configured. The reply text is sent to the text-to-speech provider configured in Hermes (for example OpenAI TTS through the Nous Tool Gateway). Those providers may keep data or charge for use under their own terms.
+
+## Tests
+
+Run `hermes plugins validate` against this directory on a compatible Hermes installation. `tests/test_turn_admission.py` needs no Hermes installation and runs anywhere. Run the other tests in `tests/` on Termux, not Windows; Linux-only system calls used for safe file handling are not supported by Windows Python.

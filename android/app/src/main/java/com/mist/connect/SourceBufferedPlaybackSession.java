@@ -58,8 +58,15 @@ public final class SourceBufferedPlaybackSession implements SourceServicePlaybac
         AndroidBackend(float speed) {this.speed=speed;}
         private MediaPlayer player;
         private MediaDataSource data;
-        private boolean aborted, prepared, closed;
+        private boolean aborted, prepared, closed, started;
         private RuntimeException cleanupFailure;
+        /** Read-only progress for the overlay; never usable once this player stops. */
+        private final PlaybackProgress.Source progress=new PlaybackProgress.Source() {
+            public long positionMs(){synchronized(AndroidBackend.this){
+                return started && !aborted && !closed ? player.getCurrentPosition() : -1;}}
+            public long durationMs(){synchronized(AndroidBackend.this){
+                return started && !aborted && !closed ? player.getDuration() : -1;}}
+        };
         public void prepare(byte[] bytes,Runnable complete,Runnable failed) throws Exception {
             final MediaPlayer local;
             synchronized(this) {
@@ -90,6 +97,8 @@ public final class SourceBufferedPlaybackSession implements SourceServicePlaybac
             try {
                 player.setPlaybackParams(new android.media.PlaybackParams().setSpeed(speed).setPitch(SpeechPlaybackPolicy.PITCH));
                 player.start();
+                started=true;
+                PlaybackProgress.begin(progress);
             } catch(RuntimeException failure) {
                 aborted=true;
                 try {close();} catch(RuntimeException cleanup) {if(cleanup!=failure)failure.addSuppressed(cleanup);}
@@ -99,12 +108,14 @@ public final class SourceBufferedPlaybackSession implements SourceServicePlaybac
         public synchronized void abort(){
             if(aborted || closed)return;
             aborted=true;
+            PlaybackProgress.end(progress);
             // prepare() has no started playback; worker must still join before replacement.
             if(prepared && player!=null)player.stop();
         }
         public synchronized void close(){
             if(closed){if(cleanupFailure!=null)throw cleanupFailure;return;}
             closed=true;
+            PlaybackProgress.end(progress);
             RuntimeException failure=null;
             if(player!=null) {
                 try{player.setOnCompletionListener(null);}catch(RuntimeException e){failure=e;}

@@ -39,13 +39,14 @@ class Fixture(BaseHTTPRequestHandler):
             self.send_response(401); self.send_header("Content-Length", "0"); self.end_headers(); return
         if self.mode == "redirect":
             self.send_response(302); self.send_header("Location", "https://example.com/"); self.send_header("Content-Length", "0"); self.end_headers(); return
-        value = dict(success=True, transcript="설정 앱 열어 줘", provider="android-native", on_device=True, instance_id=IDENTITY)
+        value = dict(success=True, transcript="설정 앱 열어 줘", provider="android-native", on_device=True, instance_id=IDENTITY,
+                     stt_contract=2, stt_reason="recognized", stt_cleanup_confirmed=True)
         if self.mode == "identity": value["instance_id"] = "other"
         if self.mode == "online": value["on_device"] = False
         if self.mode == "bool": value["success"] = 1
-        if self.mode == "silence": value["transcript"] = ""
-        if self.mode == "failure": value.update(success=False, error="stt_korean_model_missing")
-        if self.mode == "unsafe_error": value.update(success=False, error=TOKEN)
+        if self.mode == "silence": value.update(success=False, transcript="", error="stt_no_match", stt_reason="no_match")
+        if self.mode == "failure": value.update(success=False, transcript="", error="stt_korean_model_missing", stt_reason="failed")
+        if self.mode == "unsafe_error": value.update(success=False, transcript="", error=TOKEN, stt_reason="failed")
         payload = json.dumps(value).encode()
         if self.mode == "oversize": payload = b" " * 40000
         self.send_response(200); self.send_header("Content-Length", str(len(payload))); self.end_headers(); self.wfile.write(payload)
@@ -110,15 +111,17 @@ class AndroidSttContract(unittest.TestCase):
         Fixture.mode="oversize"; self.assertFalse(self.provider.transcribe(self.wav)["success"])
     def test_no_speech(self):
         Fixture.mode="silence"; value=self.provider.transcribe(self.wav)
-        self.assertTrue(value["success"]); self.assertTrue(value["no_speech"])
+        # Contract v2: silence is a typed failure, never an empty success.
+        self.assertFalse(value["success"]); self.assertEqual(value["error"], "stt_no_match")
     def test_whole_stop_variants_only(self):
         link = self.manager._hooks['post_llm_call'][0].__self__
-        for word in ['스탑', '스톱', 'STOP!']:
+        for word in ['스탑', '스톱', 'STOP!', '헤르메스 스탑']:
             code, value = link.say(word)
             self.assertEqual(code, 200)
-            self.assertTrue(value['stopped'])
+            self.assertEqual(value['command_reason'], 'stop_only')
+            self.assertFalse(value['accepted'])
         code, value = link.say('스톱이라는 단어를 설명해 줘')
-        self.assertFalse(value.get('stopped', False))
+        self.assertNotEqual(value.get('command_reason'), 'stop_only')
         self.assertEqual(Fixture.calls, [])
     def test_failure_no_fallback_or_secret_reflection(self):
         for mode in ["failure","unsafe_error"]:

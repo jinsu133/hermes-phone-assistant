@@ -48,7 +48,10 @@ class MainActivity : ComponentActivity() {
             actions.add(HomeAction(id, getString(title), section))
             commands.bind(id, effect)
         }
-        command(HomeCommand.PERMISSIONS_OVERVIEW, R.string.permission_overview_integration, HomeSection.EVERYDAY) { startActivity(Intent(this, PermissionOverviewActivity::class.java)) }
+        command(HomeCommand.PERMISSIONS_OVERVIEW, R.string.permission_overview_integration, HomeSection.PRIMARY) {
+            startActivity(Intent(this, PermissionOverviewActivity::class.java)
+                .putExtra(PermissionOverviewActivity.EXTRA_START_GUIDED, true))
+        }
         command(HomeCommand.LOCK_SETTINGS, R.string.action_lock_settings, HomeSection.EVERYDAY) { startActivity(Intent(this, LockSettingsActivity::class.java)) }
         command(HomeCommand.CONTROL_CONSENT, R.string.action_control_consent, HomeSection.EVERYDAY) {
             AlertDialog.Builder(this).setTitle(R.string.consent_title).setMessage(R.string.consent_message)

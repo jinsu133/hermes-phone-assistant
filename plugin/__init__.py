@@ -16,11 +16,22 @@ from .schemas import SCHEMAS
 from .handlers import Handlers
 from .voicelink import VoiceLink
 from .confirmation import guard_phone_action
+from . import confirmation as _confirmation
+from . import messages
+from . import voice_events as _voice_events
 
 
 def register(ctx):
     from .android_stt import AndroidTranscriptionProvider
-    ctx.register_transcription_provider(AndroidTranscriptionProvider(ctx))
+    _confirmation._CTX = ctx
+    _voice_events._CTX = ctx
+    messages.register(ctx)
+    # Public provider registry (Hermes >= the release that added it); older hosts still get
+    # the plugin's own direct use of this provider in the voice bridge.
+    register_stt = getattr(ctx, "register_transcription_provider", None)
+    if callable(register_stt):
+        register_stt(AndroidTranscriptionProvider(ctx))
+    T = lambda key, **values: messages.text(ctx, key, **values)
     link = VoiceLink(ctx)
     handlers = Handlers(ctx, link)
     for name, schema in SCHEMAS.items():
@@ -65,28 +76,30 @@ def register(ctx):
             return {'ok': True, 'started': state['listening']}
         if not raw or raw == "status":
             state = link.status()
-            return (f"음성 연결: {'ON' if state['listening'] else 'OFF'} · "
-                    f"페어링 {'완료' if state['paired'] else '필요'} · "
-                    f"세션 {'설정됨' if state['session_configured'] else '미설정'}")
+            return T("voicelink.status",
+                     state=T("voicelink.on") if state['listening'] else T("voicelink.off_state"),
+                     pairing=T("voicelink.paired") if state['paired'] else T("voicelink.unpaired"),
+                     session=(T("voicelink.session_set") if state['session_configured']
+                              else T("voicelink.session_unset")))
         if raw == "off":
             link.stop()
-            return "음성 연결을 중단했습니다. 대기 중인 응답도 지웠습니다."
+            return T("voicelink.stopped")
         if raw.startswith("import "):
             try:
                 parts = shlex.split(raw)
                 if len(parts) != 2:
-                    return '사용법: /voicelink import "/storage/emulated/0/Download/hermes-phone-connection.json"'
-                result = link.import_pairing(parts[1])
+                    return T("voicelink.import_usage")
+                link.import_pairing(parts[1])
             except (ValueError, OSError) as exc:
-                return f"음성 앱 페어링을 가져오지 못했습니다: {exc}"
-            return "음성 앱 페어링을 저장했습니다. 비밀 키는 출력하거나 기록하지 않았습니다."
+                return T("voicelink.import_failed", error=exc)
+            return T("voicelink.imported")
         if raw == "on":
             try:
                 state = link.start(expected_epoch=epoch)
             except RuntimeError as exc:
-                return f"음성 연결 시작 실패: {exc}"
-            return f"음성 연결을 시작했습니다: {state['url']} (기기 내부 연결만 허용)"
-        return '사용법: /voicelink import <파일> | on | off | status'
+                return T("voicelink.start_failed", error=exc)
+            return T("voicelink.started", url=state['url'])
+        return T("voicelink.usage")
 
     ctx.register_command("voicelink", _voicelink_command,
                          description="Pair and control the phone voice bridge",
@@ -105,11 +118,11 @@ def register(ctx):
                     "voice_route": link.voice_admission(), "installation_performed": False}, ensure_ascii=False)
             if len(parts) == 2 and parts[0] == "import":
                 return json.dumps(link.import_phone_pairing(parts[1]), ensure_ascii=False)
-            return "사용법: /phone_setup doctor | import <통합 연결 파일>"
+            return T("setup.usage")
         except PairingError as exc:
-            return "통합 연결 가져오기 실패: " + str(exc)
+            return T("setup.import_failed", error=exc)
         except Exception:
-            return "통합 연결 가져오기 실패: PAIRING_IMPORT_FAILED"
+            return T("setup.import_failed", error="PAIRING_IMPORT_FAILED")
 
     for command in ("phone_setup", "phone-setup"):
         ctx.register_command(command, _phone_setup,
@@ -136,9 +149,9 @@ def register(ctx):
         try:
             return command(ctx, get_hermes_home(), args)
         except SettingsError as error:
-            return '음성 설정 변경 실패: ' + str(error)
+            return T("speech.change_failed", error=error)
         except Exception:
-            return '음성 설정 변경 실패: SPEECH_SETTINGS_UNAVAILABLE'
+            return T("speech.change_failed", error="SPEECH_SETTINGS_UNAVAILABLE")
 
     for command_name in ('phone-speech', 'phone_speech'):
         ctx.register_command(command_name, _phone_speech,
@@ -205,31 +218,26 @@ def register(ctx):
             if not raw or raw == "list":
                 entries = store.load(home)
                 if not entries:
-                    return "등록된 발음 보정이 없습니다. `/voicefix 잘못들은말 => 바른말`로 추가합니다."
+                    return T("voicefix.empty")
                 lines = [f"- {e['wrong']} → {e['right']}" for e in entries]
-                return "발음 보정 " + str(len(entries)) + "건\n" + "\n".join(lines)
+                return T("voicefix.list", count=len(entries), lines="\n".join(lines))
             if raw.startswith("remove "):
                 target = raw[len("remove "):].strip()
                 if not target:
-                    return "사용법: `/voicefix remove <잘못 들은 말>`"
+                    return T("voicefix.remove_usage")
                 before = len(store.load(home))
                 remaining = store.remove(home, target)
-                return f"{before - len(remaining)}건을 삭제했습니다." if before != len(remaining) else "일치하는 항목이 없습니다."
+                return (T("voicefix.removed", count=before - len(remaining))
+                        if before != len(remaining) else T("voicefix.no_match"))
             if "=>" not in raw:
-                return "사용법: `/voicefix <잘못 들은 말> => <바른 말>` | `/voicefix list` | `/voicefix remove <말>`"
+                return T("voicefix.usage")
             wrong, right = (part.strip() for part in raw.split("=>", 1))
             store.put(home, wrong, right)
-            return f"발음 보정을 저장했습니다: {wrong} → {right}. 다음 음성 요청부터 적용됩니다."
+            return T("voicefix.saved", wrong=wrong, right=right)
         except store.CorrectionError as exc:
-            reason = {
-                "correction_text_invalid": "문구가 비었거나 60자를 넘습니다",
-                "correction_is_identity": "양쪽이 같아 보정이 아닙니다",
-                "correction_store_full": "저장 한도(200건)를 넘었습니다",
-                "correction_store_invalid": "저장 파일이 손상되어 거부했습니다",
-                "correction_store_unreadable": "저장 파일을 읽을 수 없습니다",
-                "correction_store_too_large": "저장 파일이 너무 큽니다",
-            }.get(str(exc), "저장하지 못했습니다")
-            return f"발음 보정 실패: {reason}."
+            key = "voicefix.err." + str(exc)
+            reason = T(key) if key in messages.EN else T("voicefix.err.default")
+            return T("voicefix.failed", reason=reason)
 
     ctx.register_command("voicefix", _voicefix,
                          description="Repair recurring speech-recognition mistakes",

@@ -2,6 +2,12 @@ package com.mist.connect;
 import org.junit.Test;
 import static org.junit.Assert.*;
 public class ConversationPolicyTest {
+ @Test public void followupWaitsThirtySecondsWithoutUploadingSilence() {
+   SpeechEndGate g = new SpeechEndGate(30000); short[] silence = new short[1600];
+   for(int i=0;i<299;i++) { g.checkWallTime(i*100); assertFalse(g.accept(silence,silence.length)); }
+   assertTrue(g.accept(silence,silence.length)); assertFalse(g.hasSpeech());
+   assertEquals(SpeechEndGate.Decision.NO_SPEECH,g.decision());
+ }
  @Test public void followupWaitsTenSecondsWithoutUploadingSilence() {
    SpeechEndGate g = new SpeechEndGate(10000); short[] silence = new short[1600];
    for(int i=0;i<99;i++) assertFalse(g.accept(silence,silence.length));
@@ -12,7 +18,7 @@ public class ConversationPolicyTest {
    // Energy alone is not speech: inject meaningful recognizer progress.
    assertFalse(g.accept(speech,1600,new SpeechEndGate.Evidence("오늘",false,-1)));
    assertFalse(g.accept(speech,1600,new SpeechEndGate.Evidence("오늘 날씨",false,-1)));
-   for(int i=0;i<13;i++) assertFalse(g.accept(new short[1600],1600));
+   for(int i=0;i<19;i++) assertFalse(g.accept(new short[1600],1600));
    assertTrue(g.accept(new short[1600],1600)); assertTrue(g.hasSpeech());
  }
  @Test public void energyAloneCannotAuthorizeFollowupUpload() {

@@ -47,7 +47,7 @@ def snapshot(ctx):
 
 
 def capabilities():
-    return dict(schema_version=1,ok=True,plugin_version='0.18.0-runs-preview.1',
+    return dict(schema_version=1,ok=True,plugin_version='0.19.0',
                 strict_voice=False,model_catalog=False,voice_route_write=False,
                 scoped_cancel=False,integrated_mcp=True,procedural_route_learning=True,
                 blocked_reason='HOST_ROUTE_CONTRACT_UNAVAILABLE')

@@ -43,6 +43,27 @@ public final class PublicReplyOwnershipTest {
         publish.invoke(p, request, "request-a", "Late reply");
         assertNull(preview(p));
     }
+    @Test public void completedReplyRemainsDuringFollowupButClearsOnWakeWait() throws Exception {
+        ServiceUiPublication p = new ServiceUiPublication(new Object(), () -> 100L);
+        ServiceUiPublication.Scope session = p.start(1, ServiceUiPublication.Mode.HANDSFREE);
+        ServiceUiPublication.Scope request = p.beginRequest(session, "operation-a");
+        p.acceptRequest(request, "request-a");
+        publish().invoke(p, request, "request-a", "완료된 답변");
+        p.retireRequest(request, true);
+        p.captureEvent(session, ServiceUiPublication.CaptureEvent.FOLLOW_UP);
+        assertEquals("완료된 답변", preview(p));
+        p.captureEvent(session, ServiceUiPublication.CaptureEvent.WAKE_WAIT);
+        assertNull(preview(p));
+    }
+    @Test public void longPublicAnswerIsNotCutAtOldPreviewLimit() throws Exception {
+        ServiceUiPublication p = new ServiceUiPublication(new Object(), () -> 100L);
+        ServiceUiPublication.Scope session = p.start(1, ServiceUiPublication.Mode.HANDSFREE);
+        ServiceUiPublication.Scope request = p.beginRequest(session, "operation-long");
+        p.acceptRequest(request, "request-long");
+        String answer = "가".repeat(400) + " 문장 끝";
+        publish().invoke(p, request, "request-long", answer);
+        assertEquals(answer, preview(p));
+    }
     @Test public void publicPreviewExcludesReasoningAndCommonSecretPatterns() throws Exception {
         ServiceUiPublication p = new ServiceUiPublication(new Object(), () -> 100L);
         ServiceUiPublication.Scope session = p.start(1, ServiceUiPublication.Mode.HANDSFREE);

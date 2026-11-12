@@ -128,8 +128,9 @@ final class ServiceUiPublication {
                 .replaceAll("(?s)```.*?(?:```|\\z)", "[code omitted]")
                 .replaceAll("(?i)(?:sk-[a-z0-9_-]{12,}|bearer\\s+[a-z0-9._~+/-]{12,}|(?:api[_-]?key|token|secret)\\s*[:=]\\s*[^\\s,;]+)", "[redacted]")
                 .replaceAll("[\\p{Cc}\\p{Cf}]", " ").trim();
+            // Match the service's bounded reply text while retaining its full visible answer.
             int count = cleaned.codePointCount(0, cleaned.length());
-            if (count > 240) cleaned = cleaned.substring(0, cleaned.offsetByCodePoints(0, 240));
+            if (count > 4000) cleaned = cleaned.substring(0, cleaned.offsetByCodePoints(0, 4000));
             Draft d = new Draft(latest); d.publicFinalPreview = cleaned.isEmpty() ? null : cleaned; commit(d);
         }
     }
@@ -144,12 +145,18 @@ final class ServiceUiPublication {
     }
     void retireRequest(Scope s, boolean completed) {
         synchronized(gate) { if(!same(s) || s.operation==null || !s.operation.equals(latest.operationId))return;
-            Draft d=new Draft(latest); d.operationId=null; d.requestId=null; d.publicFinalPreview=null; d.waiting=Wait.NONE;
+            Draft d=new Draft(latest); d.operationId=null; d.waiting=Wait.NONE;
+            // Display-only retention until FOLLOW_UP ends; OFF, lock and the next
+            // request still revoke the preview and the old operation is retired.
+            if(!completed || d.mode!=Mode.HANDSFREE) { d.requestId=null; d.publicFinalPreview=null; }
             d.remoteCleanup=completed?Cleanup.CONFIRMED:Cleanup.PENDING;
             if(!d.revoked && d.blocker==Blocker.NONE)d.phase=Phase.PREPARING; commit(d); }
     }
     void captureEvent(Scope s, CaptureEvent event) {
         synchronized(gate) { if(!current(s))return; Draft d=new Draft(latest);
+            if(event==CaptureEvent.WAKE_WAIT && d.operationId==null) {
+                d.requestId=null; d.publicFinalPreview=null;
+            }
             if(d.blocker==Blocker.REQUEST_FAILED)d.blocker=Blocker.NONE;
             d.capture=event==CaptureEvent.MONITOR?Capture.MONITOR:Capture.ACTIVE;
             d.captureCleanup=Cleanup.PENDING;

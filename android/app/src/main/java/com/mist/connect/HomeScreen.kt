@@ -31,6 +31,7 @@ internal fun HomeScreen(state: CompanionUiState, diagnostics: String,
                 Text(stringResource(R.string.home_heading), style = MaterialTheme.typography.headlineMedium,
                     modifier = Modifier.semantics { heading() })
                 CompanionStatusCard(state)
+                Text(stringResource(R.string.permission_overview_intro), style = MaterialTheme.typography.bodySmall)
                 // Same command membership/order and callbacks; only visual priority changes.
                 val primary = actions.filter { it.section == HomeSection.PRIMARY }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -50,7 +51,7 @@ internal fun HomeScreen(state: CompanionUiState, diagnostics: String,
                             .heightIn(min = 48.dp).testTag("home-${action.command.name}")) { Text(action.title) }
                     }
                 HomeSection.entries.filter { it != HomeSection.PRIMARY }.forEach { section ->
-                    var expanded by rememberSaveable(section.name) { mutableStateOf(section == HomeSection.EVERYDAY) }
+                    var expanded by rememberSaveable(section.name) { mutableStateOf(false) }
                     val name = sectionTitle(section)
                     val toggle = if (expanded) stringResource(R.string.section_collapse, name)
                         else stringResource(R.string.section_expand, name)

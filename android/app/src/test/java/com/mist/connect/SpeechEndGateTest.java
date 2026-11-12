@@ -27,7 +27,7 @@ public class SpeechEndGateTest {
     @Test public void speechEndsAfterSilence() {
         SpeechEndGate g=spoken(); short[] b=new short[1600];
         assertTrue(g.hasSpeech());
-        for(int i=0;i<13;i++)assertFalse(g.accept(b,b.length));
+        for(int i=0;i<19;i++)assertFalse(g.accept(b,b.length));
         assertTrue(g.accept(b,b.length));
         g.requireCompleteOrEmpty();
         assertEquals(SpeechEndGate.Decision.COMPLETE,g.decision());
@@ -46,7 +46,7 @@ public class SpeechEndGateTest {
     }
     @Test public void shortBlocksDoNotLoseElapsedTime() {
         SpeechEndGate g=spoken(); short[] b=new short[1];
-        for(int i=0;i<22399;i++)assertFalse(g.accept(b,1));
+        for(int i=0;i<31999;i++)assertFalse(g.accept(b,1));
         assertTrue(g.accept(b,1));
         assertEquals(SpeechEndGate.Decision.COMPLETE,g.decision());
     }
@@ -68,22 +68,22 @@ public class SpeechEndGateTest {
     @Test public void emptyCallbacksDoNotRefreshOrInventEvidence() {
         SpeechEndGate g=spoken();
         for(int i=0;i<100;i++)assertFalse(g.accept(new short[0],0,words("새로운 말 "+i,true,i*10000)));
-        assertEquals(1400,g.hangoverMs());
-        for(int i=0;i<14;i++)g.accept(new short[1600],1600,words("",true,-1));
+        assertEquals(2000,g.hangoverMs());
+        for(int i=0;i<20;i++)g.accept(new short[1600],1600,words("",true,-1));
         assertEquals(SpeechEndGate.Decision.COMPLETE,g.decision());
     }
     @Test public void resumptionClearsFinalHangover() {
         SpeechEndGate g=spoken();
         g.accept(new short[1600],1600,words("명령 계속",true,3200));
-        assertEquals(1200,g.hangoverMs());
+        assertEquals(2000,g.hangoverMs());
         g.accept(tone(1600),1600,words("명령 계속 다음",false,6400));
-        assertEquals(1400,g.hangoverMs());
-        for(int i=0;i<13;i++)assertFalse(g.accept(new short[1600],1600));
+        assertEquals(2000,g.hangoverMs());
+        for(int i=0;i<19;i++)assertFalse(g.accept(new short[1600],1600));
         assertTrue(g.accept(new short[1600],1600));
     }
     @Test public void terminalOutcomeCannotBeRevived() {
         SpeechEndGate g=spoken();
-        for(int i=0;i<14;i++)g.accept(new short[1600],1600);
+        for(int i=0;i<20;i++)g.accept(new short[1600],1600);
         assertTrue(g.accept(tone(1600),1600,words("늦음",false,32000)));
         assertEquals(SpeechEndGate.Decision.COMPLETE,g.decision());
     }

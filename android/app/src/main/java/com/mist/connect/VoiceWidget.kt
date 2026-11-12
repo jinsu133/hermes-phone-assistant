@@ -40,7 +40,8 @@ class VoiceWidget : AppWidgetProvider() {
             val manager = AppWidgetManager.getInstance(context)
             val ids = explicitIds ?: manager.getAppWidgetIds(ComponentName(context, VoiceWidget::class.java))
             val views = RemoteViews(context.packageName, R.layout.voice_widget)
-            views.setTextViewText(R.id.voice_state, CompanionUiText.title(snapshot) + "\n최근 서비스 알림: " + snapshot.serviceMessage)
+            views.setTextViewText(R.id.voice_state, CompanionUiText.title(snapshot) + "\n" +
+                context.getString(R.string.widget_recent_notice, snapshot.serviceMessage))
             views.setTextViewText(R.id.voice_lock_state, CompanionUiText.details(snapshot))
             // Existing compact XML may ellipsize; accessibility gets the complete same observation.
             views.setContentDescription(R.id.voice_state, CompanionUiText.title(snapshot) + "\n" +

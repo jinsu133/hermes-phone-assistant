@@ -3,7 +3,7 @@
     <string name="accessibility_desc">Reads the screen for voice requests and performs only phone actions allowed by the user.</string>
     <string name="voice_widget_description">Hermes local wake-word listening ON/OFF</string>
     <string name="home_heading">Voice, under your control</string>
-    <string name="home_explanation">After a reply, you can follow up for 10 seconds. Stop ends a conversation; Listen OFF ends listening and the control link.</string>
+    <string name="home_explanation">After a reply, you can follow up for 30 seconds. Stop ends a conversation; Listen OFF ends listening and the control link.</string>
     <string name="diagnostics_heading">Observed state and details</string>
     <string name="diagnostics_service_note">Latest service message (raw; public fields do not prove cleanup): %1$s</string>
     <string name="status_accessibility">Status: %1$s. Next step: %2$s</string>
@@ -220,4 +220,9 @@
     <string name="overlay_permission_settings">Android overlay permission settings</string>
     <string name="overlay_permission_separate">Display choice saved. Permission is separate; existing notifications are used for now.</string>
     <string name="overlay_permission_failed">Could not open permission settings. Existing notifications remain in use.</string>
+    <string name="widget_title">Hermes Phone Assistant</string>
+    <string name="widget_listen_on">Listen ON</string>
+    <string name="widget_listen_off">OFF</string>
+    <string name="widget_lock_settings">Extend Unlock settings</string>
+    <string name="widget_recent_notice">Latest service notice: %1$s</string>
 </resources>

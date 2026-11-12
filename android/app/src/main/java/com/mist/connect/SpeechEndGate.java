@@ -6,8 +6,8 @@ package com.mist.connect;
  * safety bound rejects the WHOLE capture; it must never return a clipped command.
  */
 public final class SpeechEndGate {
-    public static final long MIN_HANGOVER_MS = 1200;
-    public static final long MAX_HANGOVER_MS = 1400;
+    public static final long MIN_HANGOVER_MS = 2000;
+    public static final long MAX_HANGOVER_MS = 2000;
     public static final long MAX_UTTERANCE_MS = 30000;
     public static final long MAX_STALE_EVIDENCE_MS = 2800;
     private static final long RATE = 16000;
@@ -42,6 +42,7 @@ public final class SpeechEndGate {
     }
 
     private final long initialSilenceMs;
+    private final long maxCaptureMs;
     private long samples, energySamples, lastEnergySample, lastProgressSample;
     private long lastWordEnd = -1;
     private String lastText = "";
@@ -50,9 +51,12 @@ public final class SpeechEndGate {
 
     public SpeechEndGate() { this(7000); }
     public SpeechEndGate(long initialSilenceMs) {
-        if (initialSilenceMs <= 0 || initialSilenceMs >= MAX_UTTERANCE_MS)
+        if (initialSilenceMs <= 0 || initialSilenceMs > MAX_UTTERANCE_MS)
             throw new IllegalArgumentException("initial_silence_bound");
         this.initialSilenceMs = initialSilenceMs;
+        // A full 30-second follow-up wait must not consume its whole capture budget.
+        this.maxCaptureMs = initialSilenceMs == MAX_UTTERANCE_MS
+                ? MAX_UTTERANCE_MS * 2 : MAX_UTTERANCE_MS;
     }
 
     public long hangoverMs() { return endpointPending ? MIN_HANGOVER_MS : MAX_HANGOVER_MS; }
@@ -92,7 +96,7 @@ public final class SpeechEndGate {
         }
 
         // Cap wins even when silence/decoder endpoint happens on exactly this block.
-        if (samples >= MAX_UTTERANCE_MS * RATE / 1000) decision = Decision.SAFETY_LIMIT;
+        if (samples >= maxCaptureMs * RATE / 1000) decision = Decision.SAFETY_LIMIT;
         else if (!hasSpeech()) {
             if (samples >= initialSilenceMs * RATE / 1000) decision = Decision.NO_SPEECH;
         } else {
@@ -110,7 +114,7 @@ public final class SpeechEndGate {
      * Wall time protects storage/ownership when decoding or PCM delivery stalls.
      */
     public void checkWallTime(long elapsedMs) {
-        if (elapsedMs >= MAX_UTTERANCE_MS) {
+        if (elapsedMs >= maxCaptureMs) {
             decision = Decision.SAFETY_LIMIT;
             throw new Rejected(decision);
         }

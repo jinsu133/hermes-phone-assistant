@@ -1,10 +1,11 @@
 """Exact request-bound speech dispatch; no auto provider/credential fallback.
 
-Only family Android STT and the existing opt-in Vertex SSE route are implemented.
-Catalog saveability is NOT runtime support. External execution and explicit cloud
-credential UUIDs remain pending: this module has no principal-bound vault resolver.
-No provider is imported/opened by snapshot/status. Parent owns request admission,
-cancellation, ownership and keeping ONE snapshot for all speech in that request.
+STT is this plugin's own on-device Android provider. TTS is Hermes' configured
+``text_to_speech`` tool, reached through ``ctx.dispatch_tool`` (for example the Nous
+Portal subscription via the Tool Gateway). The plugin reads no Hermes config file and
+holds no speech credential. Catalog saveability is NOT runtime support. No provider is
+opened by snapshot/status. Parent owns request admission, cancellation, ownership and
+keeping ONE snapshot for all speech in that request.
 """
 from collections.abc import Mapping
 from pathlib import Path
@@ -47,44 +48,25 @@ class SpeechRuntime:
             self.home/'plugin-data/hermes-phone-control/settings', audience=audience)
 
     def _inherited_stt(self):
-        # Read only in family inherit, once per new request. Do NOT use the generic
-        # dispatcher, public registry globals, ambient API keys or auto detection.
-        # Retain only the reviewed Android options, never the full host config.
-        import yaml
+        # Inherit means: this plugin's Android provider with the plugin's own declared
+        # options (config_schema stt_model / stt_language). Hermes' config.yaml is not read.
         try:
-            with (self.home/'config.yaml').open('rb') as stream:
-                raw = stream.read(1024 * 1024 + 1)
-            if len(raw) > 1024 * 1024:
-                return None
-            config = yaml.safe_load(raw)
-            stt = config.get('stt') if type(config) is dict else None
-            if (type(stt) is not dict or stt.get('enabled', True) is not True
-                    or stt.get('provider') != 'android-native'):
-                return None
-            # A command declaration could shadow the plugin. Never reinterpret it
-            # as native Android merely because its name happens to match.
-            declarations = stt.get('providers', {})
-            if type(declarations) is not dict or 'android-native' in declarations:
-                return None
-            options = stt.get('android-native', {})
-            if type(options) is not dict or set(options) - {'model', 'language'}:
-                return None
             choice = dict(mode='explicit', provider='android-native', credential_ref=None,
-                          voice=None, model=options.get('model'), language=options.get('language'))
+                          voice=None, model=self.ctx.get_config('stt_model', None),
+                          language=self.ctx.get_config('stt_language', None))
             validate_speech(dict(schema_version=1, audience='family',
                                  tts={'mode': 'disabled'}, stt=choice))
             return choice
-        except (OSError, ValueError, yaml.YAMLError):
+        except (ValueError, TypeError):
             return None
 
     def snapshot(self):
         """Return recursively immutable {revision,payload,inherited_stt} mapping.
 
         A fresh store read for EVERY new request; no process-level selection cache.
-        Family inherited Android config is pinned here. No generic legacy STT
+        Family inherited Android options are pinned here. No generic legacy STT
         dispatcher is retained: unsupported inherited routes fail closed instead.
-        Vertex inherits its existing wrapper's model/voice/auth at actual open,
-        unchanged; those external configuration values are not a frozen vault.
+        Inherited TTS is whatever Hermes' own text_to_speech tool selects at use time.
         """
         current = self.settings.current()
         clean = validate_speech(current['payload'])
@@ -140,17 +122,11 @@ class SpeechRuntime:
                 raise SpeechRuntimeError('SPEECH_ANDROID_NOT_CONFIGURED')
             return choice
         if choice['mode'] != 'inherit':
-            if choice['provider'] == 'family-vertex':
-                if any(choice[key] is not None for key in ('model', 'voice', 'language')):
-                    raise SpeechRuntimeError('SPEECH_VERTEX_OVERRIDE_UNSUPPORTED')
-                # UUID syntax / scope=family is NOT sharing authorization. Never
-                # discard that exact UUID and use the HOME wrapper's credentials.
-                raise SpeechRuntimeError('SPEECH_CREDENTIAL_RESOLVER_PENDING')
+            # Only Hermes' configured TTS tool is a supported speech output. A named
+            # provider is never opened directly by the plugin.
             raise SpeechRuntimeError('SPEECH_TTS_ADAPTER_UNREADY')
-        if self.ctx.get_config('voice_streaming', False) is not True:
-            raise SpeechRuntimeError('SPEECH_STREAMING_DISABLED')
-        if not (self.home/'bin/hermes-vertex-tts-portable.py').is_file():
-            raise SpeechRuntimeError('SPEECH_VERTEX_WRAPPER_MISSING')
+        if not callable(getattr(self.ctx, 'dispatch_tool', None)):
+            raise SpeechRuntimeError('SPEECH_TTS_DISPATCH_UNAVAILABLE')
         return choice
 
     def transcribe(self, path, snapshot):
@@ -169,21 +145,9 @@ class SpeechRuntime:
         return AndroidTranscriptionProvider(self.ctx).transcribe(
             path, model=choice['model'], language=choice['language'])
 
-    def streaming_opener(self, snapshot):
-        """Return existing opener(text), including its fixed_prompt(text) helper.
-
-        Lazily opens the existing wrapper unchanged. Raises SpeechRuntimeError on
-        disabled/unready selection; NEVER substitute buffered TTS or another engine.
-        Do not invoke under VoiceLink/bridge gates. Parent retains SSE ownership.
-        """
-        value = self._checked(snapshot)
-        self._route(value, 'tts')
-        from .voice_normal_stream import existing_vertex_opener
-        required = self.ctx.get_config('voice_require_pregenerated', False)
-        if type(required) is not bool:
-            raise SpeechRuntimeError('SPEECH_PREGENERATED_POLICY_INVALID')
-        return (existing_vertex_opener(self.home, require_pregenerated=True) if required
-                else existing_vertex_opener(self.home))
+    def check_tts(self, snapshot):
+        """Raise SpeechRuntimeError unless this snapshot's TTS route is dispatchable."""
+        self._route(self._checked(snapshot), 'tts')
 
     def runtime_status(self, snapshot=None):
         """Nonsecret local dispatch evidence, NOT cloud/device health verification.
@@ -199,7 +163,7 @@ class SpeechRuntime:
             choice = value['payload'][kind]
             provider = choice.get('provider')
             if choice['mode'] == 'inherit':
-                provider = ('family-vertex' if kind == 'tts' else
+                provider = ('hermes-tts' if kind == 'tts' else
                             (value['inherited_stt'] or {}).get('provider'))
             try:
                 self._route(value, kind)

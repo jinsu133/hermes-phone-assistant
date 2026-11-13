@@ -47,13 +47,13 @@ internal object PairingEndpointUpdate {
                 "committed" -> {
                     check(prefs.edit().putLong("unified_pairing_revision", result.getLong("revision"))
                         .remove("pairing_endpoint_pending").commit())
-                    "MCP 주소 갱신 확인됨 · 음성 키와 5001 주소는 그대로 유지됩니다"
+                    AppText.get(R.string.rt_endpoint_committed, "MCP 주소 갱신 확인됨 · 음성 키와 5001 주소는 그대로 유지됩니다")
                 }
                 "rejected" -> {
                     check(prefs.edit().remove("pairing_endpoint_pending").commit())
-                    "주소 갱신이 거절됐습니다 · 기존 연결 유지"
+                    AppText.get(R.string.rt_endpoint_rejected, "주소 갱신이 거절됐습니다 · 기존 연결 유지")
                 }
-                else -> "주소 갱신 결과 미확정 · 자동 재전송 없이 같은 작업의 결과만 확인합니다"
+                else -> AppText.get(R.string.rt_endpoint_unknown, "주소 갱신 결과 미확정 · 자동 재전송 없이 같은 작업의 결과만 확인합니다")
             }
         } finally { busy.set(false) }
     }

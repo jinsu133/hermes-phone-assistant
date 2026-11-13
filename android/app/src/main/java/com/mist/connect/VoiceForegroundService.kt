@@ -18,7 +18,7 @@ class VoiceForegroundService : Service() {
         const val CHANNEL = "voice_probe"
         const val NOTIFICATION = 301
         val transcript = TransientTranscript { SystemClock.elapsedRealtime() }
-        @Volatile var status = "음성 시험 OFF"
+        @Volatile var status = AppText.get(R.string.rt_probe_off, "음성 시험 OFF")
             private set
     }
     private val running = AtomicBoolean(false)
@@ -34,29 +34,29 @@ class VoiceForegroundService : Service() {
             stopSelf(); return START_NOT_STICKY
         }
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
-            status = "마이크 권한 필요"; stopSelf(); return START_NOT_STICKY
+            status = AppText.get(R.string.rt_probe_mic_needed, "마이크 권한 필요"); stopSelf(); return START_NOT_STICKY
         }
         if (!MicrophoneOwner.claim()) { stopSelf(); return START_NOT_STICKY }
         val wake = intent.action == "START_WAKE_PROBE"
         val nm = getSystemService(NotificationManager::class.java)
-        nm.createNotificationChannel(NotificationChannel(CHANNEL, "제한된 음성 시험", NotificationManager.IMPORTANCE_LOW))
+        nm.createNotificationChannel(NotificationChannel(CHANNEL, AppText.get(R.string.rt_probe_channel, "제한된 음성 시험"), NotificationManager.IMPORTANCE_LOW))
         val pending = PendingIntent.getService(this, 301,
             Intent(this, VoiceForegroundService::class.java).setAction(STOP),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
         val note = Notification.Builder(this, CHANNEL)
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
-            .setContentTitle(if(wake) "Hermes 로컬 호출어 시험 · 최대 60초" else "Hermes 마이크 시험 · 최대 60초")
-            .setContentText("대화 미연결 · 음성 저장/전송 없음 · 누르면 중단")
+            .setContentTitle(if(wake) AppText.get(R.string.rt_probe_wake_title, "Hermes 로컬 호출어 시험 · 최대 60초") else AppText.get(R.string.rt_probe_mic_title, "Hermes 마이크 시험 · 최대 60초"))
+            .setContentText(AppText.get(R.string.rt_probe_text, "대화 미연결 · 음성 저장/전송 없음 · 누르면 중단"))
             .setContentIntent(pending).setOngoing(true).build()
         try {
             if (Build.VERSION.SDK_INT >= 29) startForeground(NOTIFICATION, note, ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
             else startForeground(NOTIFICATION, note)
         } catch (_: RuntimeException) {
-            MicrophoneOwner.release(); status = "전경 마이크 시작 거절됨"; stopSelf(); return START_NOT_STICKY
+            MicrophoneOwner.release(); status = AppText.get(R.string.rt_probe_fg_denied, "전경 마이크 시작 거절됨"); stopSelf(); return START_NOT_STICKY
         }
         running.set(true)
         transcript.setRecording(wake)
-        status = if(wake) "로컬 모델 준비 중 · 대화 미연결" else "마이크 초기화 중"
+        status = if(wake) AppText.get(R.string.rt_probe_model, "로컬 모델 준비 중 · 대화 미연결") else AppText.get(R.string.rt_probe_mic_init, "마이크 초기화 중")
         // Include initialization in the hard scheduling bound; capture has its own elapsed check.
         main.postDelayed(deadline, 60_000)
         Thread({ capture(wake, startId) }, "phone-mic-probe").start()
@@ -100,7 +100,7 @@ class VoiceForegroundService : Service() {
                     decodeNanos+=System.nanoTime()-t
                     blocks++
                     buffer.fill(0)
-                    if(running.get()) status="${if(wake) "로컬 호출어" else "마이크"} 시험: ${total/rate}초 · 감지 ${hits}회 · 대화 미연결"
+                    if(running.get()) status=(if(wake) AppText.get(R.string.rt_probe_wake_progress, "로컬 호출어 시험: ${total/rate}초 · 감지 ${hits}회 · 대화 미연결", total/rate, hits) else AppText.get(R.string.rt_probe_mic_progress, "마이크 시험: ${total/rate}초 · 감지 ${hits}회 · 대화 미연결", total/rate, hits))
                 } else Thread.sleep(20)
             }
         } catch(e: Exception) { if(running.get()) failure=e.javaClass.simpleName }
@@ -111,8 +111,8 @@ class VoiceForegroundService : Service() {
             audio?.release(); recorder=null
             try { detector?.close() } catch(e: Exception) { failure=e.javaClass.simpleName }
             val elapsed=SystemClock.elapsedRealtime()-started
-            status=if(failure.isNotEmpty() || total==0L) "시험 종료 · 입력/모델 확인 필요: $failure" else
-                "시험 종료: ${total/16000}초, 최대 진폭 $peak, 호출어 ${hits}회 · 음성 저장/전송 없음"
+            status=if(failure.isNotEmpty() || total==0L) AppText.get(R.string.rt_probe_failed, "시험 종료 · 입력/모델 확인 필요: $failure", failure) else
+                AppText.get(R.string.rt_probe_done, "시험 종료: ${total/16000}초, 최대 진폭 $peak, 호출어 ${hits}회 · 음성 저장/전송 없음", total/16000, peak, hits)
             getSharedPreferences("voice_probe",MODE_PRIVATE).edit()
                 .putString("result",status).putLong("samples",total).putInt("peak",peak)
                 .putInt("wake_hits",hits).putBoolean("wake_mode",wake)

@@ -54,7 +54,7 @@ class VoiceRequestService : Service() {
         private const val TTS_WAIT_MS = 180_000L
         private const val MIN_PCM_BYTES = 3200
 
-        @Volatile var status = "음성 요청 OFF"
+        @Volatile var status = AppText.get(R.string.rt_request_off, "음성 요청 OFF")
             private set
         private val cancellation = ScopedVoiceCancellation()
         @Volatile private var uiChannel: ServiceUiPublication? = null
@@ -173,7 +173,7 @@ class VoiceRequestService : Service() {
     private val playbackMutex = Any()
     @Volatile private var progressConnection: HttpURLConnection? = null
     private val deadline = Runnable {
-        cancelActive("음성 요청 시간 제한이 끝났습니다.")
+        cancelActive(AppText.get(R.string.rt_request_timeout, "음성 요청 시간 제한이 끝났습니다."))
         stopSelf()
     }
 
@@ -209,7 +209,7 @@ class VoiceRequestService : Service() {
                 playback.serviceFailure(SourceServicePlaybackAdapter.ServiceStage.SYNTHETIC_TRIAL, error); null
             }
             if (trial == null || !trial.owns(playback)) {
-                status = "완전한 합성 시험 전송이 없어 거부했습니다"
+                status = AppText.get(R.string.rt_synth_rejected, "완전한 합성 시험 전송이 없어 거부했습니다")
                 stopSelf(startId)
                 return START_NOT_STICKY
             }
@@ -218,12 +218,12 @@ class VoiceRequestService : Service() {
                 try {
                     val result = trial.run()
                     syntheticTrialResult = result
-                    status = "스트리밍 시험 완료 · 마이크 미사용"
+                    status = AppText.get(R.string.rt_synth_done, "스트리밍 시험 완료 · 마이크 미사용")
                     android.util.Log.i("VoiceLifecycle", "stage=synthetic_complete correlation_id=${result.correlationId}")
                 } catch (error: Exception) {
                     playback.serviceFailure(SourceServicePlaybackAdapter.ServiceStage.SYNTHETIC_TRIAL, error)
                     playback.off()
-                    status = "합성 시험 실패 · 재시도/실제 음성 전환 없음"
+                    status = AppText.get(R.string.rt_synth_failed, "합성 시험 실패 · 재시도/실제 음성 전환 없음")
                 } finally { main.post { stopSelf(startId) } }
             }, "source-synthetic-trial").also { it.start() }
             return START_NOT_STICKY
@@ -236,14 +236,14 @@ class VoiceRequestService : Service() {
             SUBMIT_REQUEST -> {
                 if (running.get()) {
                     submitRequested.set(true)
-                    status = "녹음을 마치고 Hermes에 전송합니다."
+                    status = AppText.get(R.string.rt_sending, "녹음을 마치고 Hermes에 전송합니다.")
                 } else {
-                    status = "전송할 음성 녹음이 없습니다."
+                    status = AppText.get(R.string.rt_nothing_to_send, "전송할 음성 녹음이 없습니다.")
                 }
                 return START_NOT_STICKY
             }
             CANCEL_REQUEST -> {
-                cancelActive("음성 요청을 취소했습니다. 녹음과 재생을 중단했습니다.")
+                cancelActive(AppText.get(R.string.rt_cancelled, "음성 요청을 취소했습니다. 녹음과 재생을 중단했습니다."))
                 try { CompanionUiRepository.offRequested() } catch (_: RuntimeException) { /* optional display only */ }
                 stopSelf(startId)
                 return START_NOT_STICKY
@@ -265,7 +265,7 @@ class VoiceRequestService : Service() {
         if (checkSelfPermission(Manifest.permission.RECORD_AUDIO) != PackageManager.PERMISSION_GRANTED) {
             refuseUi(ServiceUiPublication.Blocker.MIC_PERMISSION)
             VoiceDiagnostics.failed("start_mic_permission", null)
-            status = "마이크 권한이 필요합니다."
+            status = AppText.get(R.string.rt_mic_needed, "마이크 권한이 필요합니다.")
             honourForegroundStart(startId, stop = true)
             return START_NOT_STICKY
         }
@@ -274,7 +274,7 @@ class VoiceRequestService : Service() {
         if (!VoiceBridgeProtocol.validToken(token)) {
             refuseUi(ServiceUiPublication.Blocker.PAIRING_MISSING)
             VoiceDiagnostics.failed("start_token", null)
-            status = "음성 연결 파일을 먼저 저장하고 가져와야 합니다."
+            status = AppText.get(R.string.rt_pairing_needed, "음성 연결 파일을 먼저 저장하고 가져와야 합니다.")
             honourForegroundStart(startId, stop = true)
             return START_NOT_STICKY
         }
@@ -283,13 +283,13 @@ class VoiceRequestService : Service() {
         val trialTransport = if (controllerTrial) controllerTrialFactory?.invoke(playback) else null
         if (controllerTrial && trialTransport == null) {
             refuseUi(ServiceUiPublication.Blocker.PROTOCOL_UNSUPPORTED)
-            status = "시험 호스트 인증 준비가 없어 시작하지 않았습니다"
+            status = AppText.get(R.string.rt_test_host_unready, "시험 호스트 인증 준비가 없어 시작하지 않았습니다")
             honourForegroundStart(startId, stop = true)
             return START_NOT_STICKY // Requested trial NEVER falls back to buffered operation.
         }
         if (!MicrophoneOwner.claim(microphoneLease)) {
             refuseUi(ServiceUiPublication.Blocker.MIC_BUSY)
-            status = "다른 기능이 마이크를 사용 중입니다."
+            status = AppText.get(R.string.rt_mic_busy, "다른 기능이 마이크를 사용 중입니다.")
             honourForegroundStart(startId, stop = true)
             return START_NOT_STICKY
         }
@@ -307,7 +307,7 @@ class VoiceRequestService : Service() {
         if (trialTransport == null && !normalStreaming && !playback.begin(playbackEpoch.incrementAndGet(), consentRevision.incrementAndGet())) {
             MicrophoneOwner.release(microphoneLease)
             refuseUi(ServiceUiPublication.Blocker.CLEANUP_UNCERTAIN)
-            status = "이전 재생 정리가 확인되지 않아 시작하지 않았습니다"
+            status = AppText.get(R.string.rt_playback_cleanup, "이전 재생 정리가 확인되지 않아 시작하지 않았습니다")
             honourForegroundStart(startId, stop = true)
             return START_NOT_STICKY
         }
@@ -325,14 +325,14 @@ class VoiceRequestService : Service() {
         turnStopped.set(false)
         submitRequested.set(false)
         lastReplyText = ""
-        status = "음성 요청을 준비하고 있습니다."
+        status = AppText.get(R.string.rt_preparing, "음성 요청을 준비하고 있습니다.")
         try {
             startForeground(NOTIFICATION, notification(getString(R.string.notif_request_ready), getString(R.string.notif_request_ready_text), true),
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         } catch (_: RuntimeException) {
             MicrophoneOwner.release(microphoneLease)
             refuseUi(ServiceUiPublication.Blocker.FOREGROUND_DENIED)
-            status = "Android가 전경 마이크 서비스를 시작하지 못했습니다."
+            status = AppText.get(R.string.rt_fg_mic_denied, "Android가 전경 마이크 서비스를 시작하지 못했습니다.")
             stopSelf(startId)
             return START_NOT_STICKY
         }
@@ -412,8 +412,8 @@ class VoiceRequestService : Service() {
             // Stage, exception type, and the transport failure code only: no token, no screen text, no speech.
             Log.w("VoiceRequest", "controller failed stage=${VoiceDiagnosticJournal.stage(stage)} type=${VoiceDiagnosticJournal.type(error)}")
             playback.serviceFailure(SourceServicePlaybackAdapter.ServiceStage.CONTROLLER, error)
-            status = if (stage == "host_route_contract") "호스트가 안전한 음성 모델 적용을 지원하지 않아 마이크를 시작하지 않았습니다."
-                else "연결 실패 · ${VoiceDiagnosticJournal.stage(stage)} · ${VoiceDiagnosticJournal.type(error)}"
+            status = if (stage == "host_route_contract") AppText.get(R.string.rt_route_unsupported, "호스트가 안전한 음성 모델 적용을 지원하지 않아 마이크를 시작하지 않았습니다.")
+                else AppText.get(R.string.rt_connect_failed, "연결 실패 · ${VoiceDiagnosticJournal.stage(stage)} · ${VoiceDiagnosticJournal.type(error)}", VoiceDiagnosticJournal.stage(stage), VoiceDiagnosticJournal.type(error))
             finish(startId)
         }
     }
@@ -422,15 +422,15 @@ class VoiceRequestService : Service() {
         val displayScope = uiScope
         var pendingDuplexPcm: RetainedPcm? = null
         try {
-            status = "Hermes 로컬 연결 확인 중"
+            status = AppText.get(R.string.rt_checking_local, "Hermes 로컬 연결 확인 중")
             check(VoiceBridgeClient.ready(token)) { "bridge_not_ready" }
-            status = "로컬 호출어 모델 준비 중"
+            status = AppText.get(R.string.rt_wake_model, "로컬 호출어 모델 준비 중")
             var rejectedNotice: String? = null
             HandsfreeCapture(applicationContext, { captureValid() },
                 { message ->
                     // Retain rejection feedback while returning to wake wait; the next
                     // actual capture replaces it. Otherwise the immediate loop hides it.
-                    val visible = if (message.startsWith("듣기 ON") && rejectedNotice != null)
+                    val visible = if (message == AppText.wakeWait() && rejectedNotice != null)
                         "$rejectedNotice · $message" else message.also { rejectedNotice = null }
                     status = visible
                     main.post {
@@ -464,7 +464,7 @@ class VoiceRequestService : Service() {
                         stopConversation(token)
                         check(playback.beginChecked(playbackEpoch.incrementAndGet(), consentRevision.get(),
                             { captureValid() })) { "playback_owner_blocked" }
-                        status = "대화 종료 · 호출어 대기로 돌아갑니다"
+                        status = AppText.get(R.string.rt_conversation_end, "대화 종료 · 호출어 대기로 돌아갑니다")
                         continue
                     }
                     if (pcm.isEmpty()) continue
@@ -482,7 +482,7 @@ class VoiceRequestService : Service() {
                         catch (error: Exception) {
                             playback.serviceFailure(SourceServicePlaybackAdapter.ServiceStage.REQUEST, error)
                             uiPublication.blocked(uiPublication.requestScope(), ServiceUiPublication.Blocker.REQUEST_FAILED)
-                            if (running.get() && !turnStopped.get()) status = "요청 실패: ${safeCategory(error)} · 다시 호출해 주세요"
+                            if (running.get() && !turnStopped.get()) status = AppText.get(R.string.rt_request_failed_retry, "요청 실패: ${safeCategory(error)} · 다시 호출해 주세요", safeCategory(error))
                         }
                         finally {
                             // Content-done releases the monitor loop. It is NOT a played ticket.
@@ -529,7 +529,7 @@ class VoiceRequestService : Service() {
         } catch (error: Exception) {
             playback.serviceFailure(SourceServicePlaybackAdapter.ServiceStage.HANDSFREE, error)
             uiPublication.blocked(displayScope, ServiceUiPublication.Blocker.REQUEST_FAILED)
-            if (running.get()) status = "듣기 오류: ${safeCategory(error)}"
+            if (running.get()) status = AppText.get(R.string.rt_listen_error, "듣기 오류: ${safeCategory(error)}", safeCategory(error))
         } finally {
             try { pendingDuplexPcm?.pcm?.fill(0) } finally { finish(startId) }
         }
@@ -675,8 +675,8 @@ class VoiceRequestService : Service() {
     }
 
     private fun captureRejectionStatus(rejected: SpeechEndGate.Rejected): String = when (rejected.reason) {
-        SpeechEndGate.Decision.SAFETY_LIMIT -> "요청이 30초 녹음 제한에 도달해 전체 녹음을 전송하지 않았습니다. 나누어 다시 말해 주세요."
-        else -> "발화 종료를 확인하지 못해 전송하지 않았습니다. 다시 말해 주세요."
+        SpeechEndGate.Decision.SAFETY_LIMIT -> AppText.get(R.string.rt_limit_reached, "요청이 30초 녹음 제한에 도달해 전체 녹음을 전송하지 않았습니다. 나누어 다시 말해 주세요.")
+        else -> AppText.get(R.string.rt_end_unconfirmed, "발화 종료를 확인하지 못해 전송하지 않았습니다. 다시 말해 주세요.")
     }
 
     private fun captureAndSend(startId: Int, token: String) {
@@ -702,7 +702,7 @@ class VoiceRequestService : Service() {
             }) { "capture_owner_revoked" }
             check(record.recordingState == AudioRecord.RECORDSTATE_RECORDING) { "audio_start_failed" }
             uiPublication.captureEvent(displayScope, ServiceUiPublication.CaptureEvent.CAPTURING)
-            status = "녹음 중 · 30초 전에 전송해 주세요 · 제한 도달 시 전체 녹음을 폐기합니다."
+            status = AppText.get(R.string.rt_recording_limit, "녹음 중 · 30초 전에 전송해 주세요 · 제한 도달 시 전체 녹음을 폐기합니다.")
             sampleBuffer = ShortArray(1600)
             val captureDeadline = started + CAPTURE_LIMIT_MS
             while (captureValid() && !submitRequested.get()
@@ -722,7 +722,7 @@ class VoiceRequestService : Service() {
                         captured.write((sample ushr 8) and 0xff)
                     }
                     sampleBuffer.fill(0)
-                    status = "녹음 중 · ${captured.size() / (SAMPLE_RATE * 2)}초 · 전송 버튼으로 마칩니다."
+                    status = AppText.get(R.string.rt_recording_secs, "녹음 중 · ${captured.size() / (SAMPLE_RATE * 2)}초 · 전송 버튼으로 마칩니다.", captured.size() / (SAMPLE_RATE * 2))
                 } else {
                     Thread.sleep(20)
                 }
@@ -763,13 +763,13 @@ class VoiceRequestService : Service() {
             pcm?.fill(0)
             status = if (primary is SpeechEndGate.Rejected && failure != "capture_cleanup_unconfirmed")
                 captureRejectionStatus(primary)
-            else "녹음을 시작하거나 읽지 못했습니다: $failure"
+            else AppText.get(R.string.rt_record_failed, "녹음을 시작하거나 읽지 못했습니다: $failure", failure)
             finish(startId)
             return
         }
         if (pcm == null || pcm!!.size < MIN_PCM_BYTES) {
             pcm?.let { Arrays.fill(it, 0) }
-            status = "녹음이 너무 짧아 전송하지 않았습니다."
+            status = AppText.get(R.string.rt_too_short, "녹음이 너무 짧아 전송하지 않았습니다.")
             finish(startId)
             return
         }
@@ -782,7 +782,7 @@ class VoiceRequestService : Service() {
             playback.serviceFailure(SourceServicePlaybackAdapter.ServiceStage.REQUEST, error)
             VoiceDiagnostics.reportException("voice_request", error)
             uiPublication.blocked(displayScope, ServiceUiPublication.Blocker.REQUEST_FAILED)
-            if (running.get() && !cancelled.get()) status = "음성 요청 실패: ${safeCategory(error)}"
+            if (running.get() && !cancelled.get()) status = AppText.get(R.string.rt_voice_request_failed, "음성 요청 실패: ${safeCategory(error)}", safeCategory(error))
         } finally {
             Arrays.fill(pcm!!, 0)
             connection?.disconnect()
@@ -805,14 +805,14 @@ class VoiceRequestService : Service() {
         val permit = retained?.permit ?: playback.reserveUpload(epoch, revision) { captureValid() && !turnStopped.get() }
             ?: return null
         uiPublication.waitFor(displaySession, ServiceUiPublication.Wait.UNLOCK)
-        status = "잠금 확인 · 필요하면 화면에서 직접 인증해 주세요"
+        status = AppText.get(R.string.rt_lock_check, "잠금 확인 · 필요하면 화면에서 직접 인증해 주세요")
         val unlocked = try {
             UnlockCoordinator.await(this) { running.get() && !cancelled.get() && !turnStopped.get() }
         } finally {
             uiPublication.waitFor(displaySession, ServiceUiPublication.Wait.NONE)
         }
         if (!unlocked) {
-            status = "잠금 해제 취소 또는 시간 초과 · 요청을 전송하지 않았습니다"
+            status = AppText.get(R.string.rt_unlock_cancelled, "잠금 해제 취소 또는 시간 초과 · 요청을 전송하지 않았습니다")
             return null
         }
         val generation = VoiceBridgeClient.cancellationSession(token)
@@ -826,7 +826,7 @@ class VoiceRequestService : Service() {
         val wav = VoiceBridgeProtocol.toWav(pcm)
         val requestId: String
         try {
-            status = "음성을 Hermes STT로 전송합니다."
+            status = AppText.get(R.string.rt_stt_sending, "음성을 Hermes STT로 전송합니다.")
             VoiceDiagnostics.uploads.incrementAndGet()
             val accepted = VoiceBridgeClient.submitAudio(token, wav, uploadScope, beforeUpload = {
                 check(playback.consumeUpload(permit, {
@@ -868,7 +868,7 @@ class VoiceRequestService : Service() {
             Arrays.fill(wav, 0)
         }
 
-        status = "현재 Hermes 대화에서 답변을 기다립니다."
+        status = AppText.get(R.string.rt_waiting_reply, "현재 Hermes 대화에서 답변을 기다립니다.")
         val replyDeadline = minOf(requestAbsoluteDeadline, SystemClock.elapsedRealtime() + REPLY_WAIT_MS)
         var replyText: String? = null
         val events = VoiceEventQueue(requestId)
@@ -925,7 +925,7 @@ class VoiceRequestService : Service() {
                 !cancelled.get() && !turnStopped.get()) uiPublication.publishFinal(displayRequest, requestId, replyText)
         }
         lastReplyText = replyText!!
-        status = "Hermes 답변을 받았습니다. 설정된 음성을 준비하고 있습니다."
+        status = AppText.get(R.string.rt_reply_received, "Hermes 답변을 받았습니다. 설정된 음성을 준비하고 있습니다.")
 
         val ticket = speakReplyParts(token, requestId) { connection = it }
         if (ticket != null && !normalStreaming) synchronized(cancellation) {
@@ -1042,7 +1042,7 @@ class VoiceRequestService : Service() {
             }
             check(active() && event.optBoolean("ok") && event.optString("digest")==pending.digest) { "confirmation_unavailable" }
             VoiceDiagnostics.approvals.incrementAndGet()
-            status="작업 내용을 음성으로 확인합니다"
+            status=AppText.get(R.string.rt_confirm_voice, "작업 내용을 음성으로 확인합니다")
             val ticket = speakReplyParts(token,event.getString("audio_id"), { active() }, approval = true) { connection=it }
                 ?: throw VoiceBridgeClient.BridgeException("confirmation_tts_failed")
             if(!active()) return
@@ -1050,7 +1050,7 @@ class VoiceRequestService : Service() {
             Thread.sleep(500)
             val armed=VoiceBridgeClient.armConfirmation(token,pending.voiceRequest,pending.id)
             check(active() && armed.optString("digest")==pending.digest) { "confirmation_cancelled" }
-            status="허용 문구를 말씀해 주세요 · 다른 응답에는 실행하지 않습니다"
+            status=AppText.get(R.string.rt_say_allow, "허용 문구를 말씀해 주세요 · 다른 응답에는 실행하지 않습니다")
             val pcm = try {
                 capture.nextRequest(true) { start -> listen(ticket,
                     { captureValid() && active() && ticket.request == playbackRequestScope && ticket.consent == consentRevision.get() }, start) }
@@ -1073,7 +1073,7 @@ class VoiceRequestService : Service() {
             playback.serviceFailure(SourceServicePlaybackAdapter.ServiceStage.APPROVAL, error)
             ActionConfirmation.cancelAll()
             if (error is SpeechEndGate.Rejected && !capture.cleanupConfirmed) throw error
-            if(running.get() && !turnStopped.get()) status="음성 허용을 확인하지 못해 실행하지 않았습니다"
+            if(running.get() && !turnStopped.get()) status=AppText.get(R.string.rt_allow_unconfirmed, "음성 허용을 확인하지 못해 실행하지 않았습니다")
         } finally { uiPublication.waitFor(displayScope, ServiceUiPublication.Wait.NONE) }
     }
     }
@@ -1090,7 +1090,7 @@ class VoiceRequestService : Service() {
             } catch (_: RuntimeException) {
                 running.set(false)
                 uiPublication.blocked(uiScope, ServiceUiPublication.Blocker.FOREGROUND_DENIED)
-                status = "Android가 음성 재생 서비스를 허용하지 않았습니다."
+                status = AppText.get(R.string.rt_playback_denied, "Android가 음성 재생 서비스를 허용하지 않았습니다.")
             } finally {
                 completed.countDown()
             }
@@ -1107,7 +1107,7 @@ class VoiceRequestService : Service() {
         check(playback.enqueueBuffered(epoch, 0, "buffered_$epoch",
             when { progress -> SourceServicePlaybackAdapter.Kind.PROGRESS; approval -> SourceServicePlaybackAdapter.Kind.APPROVAL_NOTICE; else -> SourceServicePlaybackAdapter.Kind.FINAL }, bytes, speechPlaybackSpeed())) { "playback_rejected" }
         check(playback.startNext()) { "playback_start_rejected" }
-        status = if (progress) "작업 진행 상황을 재생 중입니다." else "Hermes 음성 답변을 재생 중입니다."
+        status = if (progress) AppText.get(R.string.rt_playing_progress, "작업 진행 상황을 재생 중입니다.") else AppText.get(R.string.rt_playing_reply, "Hermes 음성 답변을 재생 중입니다.")
         var joined = false
         try {
             val limit = SystemClock.elapsedRealtime() + 5 * 60_000L
@@ -1115,7 +1115,7 @@ class VoiceRequestService : Service() {
                 if (playback.awaitWorker(200)) { joined = true; break }
             }
             check(joined && playback.played(epoch)) { "playback_failed" }
-            if (captureValid()) status = if (progress) "요청을 처리하고 있습니다." else "음성 요청과 답변 재생이 끝났습니다."
+            if (captureValid()) status = if (progress) AppText.get(R.string.rt_processing, "요청을 처리하고 있습니다.") else AppText.get(R.string.rt_finished, "음성 요청과 답변 재생이 끝났습니다.")
             return epoch
         } finally {
             if (!joined) {
@@ -1175,7 +1175,7 @@ class VoiceRequestService : Service() {
         } catch (error: Exception) {
             playback.serviceFailure(SourceServicePlaybackAdapter.ServiceStage.REQUEST, error)
             playback.failCleanup()
-            status = "원격 요청 정리가 확인되지 않아 새 음성 요청을 차단했습니다"
+            status = AppText.get(R.string.rt_blocked_remote, "원격 요청 정리가 확인되지 않아 새 음성 요청을 차단했습니다")
         } finally {
             synchronized(cancellation) {
                 cancellation.acknowledge(scope, confirmed)
@@ -1307,7 +1307,7 @@ class VoiceRequestService : Service() {
         val localClean = quiescePlayback(true)
         val remoteClean = cancelRemote(token, scope)
         check(localClean && remoteClean) { "cancel_cleanup_unconfirmed" }
-        status = "스탑 · 요청 권한과 재생을 중단하고 호출어 대기로 돌아갑니다"
+        status = AppText.get(R.string.rt_stop, "스탑 · 요청 권한과 재생을 중단하고 호출어 대기로 돌아갑니다")
     }
 
     private fun cancelActive(message: String) {
@@ -1332,7 +1332,7 @@ class VoiceRequestService : Service() {
             if (mayPublish) {
                 offStatusOwner = Any().also { cleanupStatusOwner = it }
                 offCompletionMessage = message
-                status = "취소 요청 중 · 원격 요청과 로컬 정리를 확인하고 있습니다"
+                status = AppText.get(R.string.rt_cancelling, "취소 요청 중 · 원격 요청과 로컬 정리를 확인하고 있습니다")
                 offPublishedStatus = status
             }
         }
@@ -1400,7 +1400,7 @@ class VoiceRequestService : Service() {
                     localCleanupStartId = startId
                 } else {
                     localCleanupStartId = null
-                    status = "재생 정리가 확인되지 않아 마이크 재사용을 차단했습니다"
+                    status = AppText.get(R.string.rt_mic_reuse_blocked, "재생 정리가 확인되지 않아 마이크 재사용을 차단했습니다")
                 }
                 // Lease release is still pending here. Only settleOffCleanup can confirm local OFF.
                 uiPublication.settle(uiScope, false, !cancellation.blocked(), uiRemoteJoined, !clean)
@@ -1441,9 +1441,9 @@ class VoiceRequestService : Service() {
                 if (cleanupStatusOwner === owner && offStatusOwner === owner &&
                     !running.get() && status == offPublishedStatus) {
                     status = when {
-                        blocked || destroyRemoteJoin?.failure != null -> "요청 정리가 확인되지 않아 새 음성 요청을 차단했습니다"
-                        cancellation.blocked() || !uiRemoteJoined || remoteCancelWorker != null -> "취소 요청 중 · 원격 요청과 로컬 정리를 확인하고 있습니다"
-                        localCleanupStartId != activeStartId || cleanupReleasePending -> "요청 권한을 취소했습니다 · 로컬 정리 대기 중"
+                        blocked || destroyRemoteJoin?.failure != null -> AppText.get(R.string.rt_blocked_cleanup, "요청 정리가 확인되지 않아 새 음성 요청을 차단했습니다")
+                        cancellation.blocked() || !uiRemoteJoined || remoteCancelWorker != null -> AppText.get(R.string.rt_cancelling, "취소 요청 중 · 원격 요청과 로컬 정리를 확인하고 있습니다")
+                        localCleanupStartId != activeStartId || cleanupReleasePending -> AppText.get(R.string.rt_cancelled_local, "요청 권한을 취소했습니다 · 로컬 정리 대기 중")
                         else -> offCompletionMessage ?: return@synchronized
                     }
                     offPublishedStatus = status
@@ -1478,7 +1478,7 @@ class VoiceRequestService : Service() {
 
     private fun safeCategory(error: Exception): String = when (error) {
         is VoiceBridgeClient.BridgeException -> VoiceSttOutcome.message(error.sttReason, error.sttCleanupConfirmed)
-            ?: "음성 요청 처리에 실패했습니다"
+            ?: AppText.get(R.string.rt_request_failed_generic, "음성 요청 처리에 실패했습니다")
         is IllegalArgumentException -> "request_invalid"
         else -> error.javaClass.simpleName
     }

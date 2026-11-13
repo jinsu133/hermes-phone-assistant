@@ -23,7 +23,7 @@ internal data class CompanionUiState(
     val requestId: String? = null, val playback: UiPlayback = UiPlayback.UNKNOWN,
     val blocked: UiBlocked = UiBlocked.UNKNOWN, val phase: UiPhase = UiPhase.UNOBSERVED,
     val locked: Boolean = false, val microphoneGranted: Boolean = false, val controlConnected: Boolean = false,
-    val serviceMessage: String = "상태 확인 전", val offPending: Boolean = false,
+    val serviceMessage: String = AppText.get(R.string.status_unknown, "상태 확인 전"), val offPending: Boolean = false,
     val service: ServiceUiPublication.Snapshot? = null, val serviceReceivedAtMillis: Long = 0,
     val offFence: OffFence? = null
 ) {
@@ -31,7 +31,7 @@ internal data class CompanionUiState(
         if (s == null) return copy(service = null, owner = null, evidence = UiEvidence.PUBLIC_FIELDS_ONLY,
             listening = UiListening.UNKNOWN, request = UiRequest.UNKNOWN, requestId = null,
             playback = UiPlayback.UNKNOWN, blocked = UiBlocked.UNKNOWN, phase = UiPhase.UNOBSERVED,
-            serviceMessage = "상태 전환 중 · 확인되지 않음", serviceReceivedAtMillis = receivedAt)
+            serviceMessage = AppText.get(R.string.status_unknown, "상태 전환 중 · 확인되지 않음"), serviceReceivedAtMillis = receivedAt)
         val p = when (s.phase) {
             ServiceUiPublication.Phase.UNKNOWN -> UiPhase.OBSERVING
             ServiceUiPublication.Phase.OFF -> UiPhase.OFF_CONFIRMED
@@ -77,7 +77,7 @@ internal object CompanionUiReducer {
         offFence = fence, offPending = true, listening = UiListening.OFF_OR_MANUAL,
         request = UiRequest.UNKNOWN, requestId = null,
         phase = if (state.blocked == UiBlocked.BLOCKED) UiPhase.BLOCKED else UiPhase.STOPPING,
-        serviceMessage = "OFF 요청 전달 중 · 종료 확인 전")
+        serviceMessage = AppText.get(R.string.status_off_pending, "OFF 요청 전달 중 · 종료 확인 전"))
     fun offRequested(previous: CompanionUiState): CompanionUiState = fenced(previous,
         OffFence(previous.owner?.processEpoch, previous.owner?.incarnation, previous.owner?.generation ?: -1))
 }
@@ -85,18 +85,18 @@ internal object CompanionUiReducer {
 internal object CompanionUiText {
     // Reducer messages are retained verbatim for provenance. Only the presentation API below is localized.
     fun phase(phase: UiPhase): String = when (phase) {
-        UiPhase.UNOBSERVED, UiPhase.OBSERVING -> "상태 전환 중 · 확인되지 않음"
-        UiPhase.PREPARING -> "음성 요청 준비 중"
-        UiPhase.WAKE_WAIT -> "호출어 대기 중"
-        UiPhase.CAPTURING -> "요청 녹음 중"
-        UiPhase.SUBMITTING -> "음성 요청 전송 중"
-        UiPhase.WAITING_REPLY -> "답변 대기 중"
-        UiPhase.PLAYING -> "재생 장치 시작 확인 · 실제 청취와 별개"
-        UiPhase.FOLLOW_UP -> "이어 말하기 대기 중"
-        UiPhase.STOPPING -> "중단 요청 · 정리 확인 중"
-        UiPhase.OFF_CONFIRMED -> "듣기 OFF · 소유자 정리 확인"
-        UiPhase.OFF_NOT_CONFIRMED -> "듣기 OFF · 정리 확인 전"
-        UiPhase.BLOCKED -> "중단됨 · 차단 원인 확인 필요"
+        UiPhase.UNOBSERVED, UiPhase.OBSERVING -> AppText.get(R.string.status_unknown, "상태 전환 중 · 확인되지 않음")
+        UiPhase.PREPARING -> AppText.get(R.string.status_preparing, "음성 요청 준비 중")
+        UiPhase.WAKE_WAIT -> AppText.get(R.string.status_wake, "호출어 대기 중")
+        UiPhase.CAPTURING -> AppText.get(R.string.status_capturing, "요청 녹음 중")
+        UiPhase.SUBMITTING -> AppText.get(R.string.status_submitting, "음성 요청 전송 중")
+        UiPhase.WAITING_REPLY -> AppText.get(R.string.status_waiting, "답변 대기 중")
+        UiPhase.PLAYING -> AppText.get(R.string.status_playing, "재생 장치 시작 확인 · 실제 청취와 별개")
+        UiPhase.FOLLOW_UP -> AppText.get(R.string.status_followup, "이어 말하기 대기 중")
+        UiPhase.STOPPING -> AppText.get(R.string.status_stopping, "중단 요청 · 정리 확인 중")
+        UiPhase.OFF_CONFIRMED -> AppText.get(R.string.status_off_confirmed, "듣기 OFF · 소유자 정리 확인")
+        UiPhase.OFF_NOT_CONFIRMED -> AppText.get(R.string.status_off_uncertain, "듣기 OFF · 정리 확인 전")
+        UiPhase.BLOCKED -> AppText.get(R.string.status_blocked, "중단됨 · 차단 원인 확인 필요")
     }
     private fun phaseId(phase: UiPhase): Int = when (phase) {
         UiPhase.UNOBSERVED, UiPhase.OBSERVING -> R.string.status_unknown
@@ -114,11 +114,11 @@ internal object CompanionUiText {
     }
     // Compatibility for overlay, widget and state tests; UI callers use locale-aware overloads.
     fun title(state: CompanionUiState): String = when {
-        state.service?.blocker == ServiceUiPublication.Blocker.CLEANUP_UNCERTAIN -> "중단됨 · 정리 상태 확인 필요"
-        state.offPending -> "OFF 요청 중 · 종료 확인 전"
-        state.service?.waiting == ServiceUiPublication.Wait.APPROVAL -> "민감 작업 승인 대기 · 기존 확인 화면에서 결정"
-        state.service?.waiting == ServiceUiPublication.Wait.UNLOCK -> "잠금 해제 대기 · 기기에서 직접 인증"
-        state.phase == UiPhase.UNOBSERVED || state.phase == UiPhase.OBSERVING -> "상태 전환 중 · 확인되지 않음"
+        state.service?.blocker == ServiceUiPublication.Blocker.CLEANUP_UNCERTAIN -> AppText.get(R.string.status_cleanup_uncertain, "중단됨 · 정리 상태 확인 필요")
+        state.offPending -> AppText.get(R.string.status_off_pending, "OFF 요청 중 · 종료 확인 전")
+        state.service?.waiting == ServiceUiPublication.Wait.APPROVAL -> AppText.get(R.string.status_approval, "민감 작업 승인 대기 · 기존 확인 화면에서 결정")
+        state.service?.waiting == ServiceUiPublication.Wait.UNLOCK -> AppText.get(R.string.status_unlock, "잠금 해제 대기 · 기기에서 직접 인증")
+        state.phase == UiPhase.UNOBSERVED || state.phase == UiPhase.OBSERVING -> AppText.get(R.string.status_unknown, "상태 전환 중 · 확인되지 않음")
         else -> phase(state.phase)
     }
     fun details(state: CompanionUiState): String = buildString {

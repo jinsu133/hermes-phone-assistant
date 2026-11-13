@@ -50,7 +50,7 @@ internal class HandsfreeCapture(
             check(audio.recordingState == AudioRecord.RECORDSTATE_RECORDING)
             typedState(if (followup) ServiceUiPublication.CaptureEvent.FOLLOW_UP else ServiceUiPublication.CaptureEvent.WAKE_WAIT)
             if (triggered) captureStartedAt = android.os.SystemClock.elapsedRealtime()
-            state(if (followup) "이어 말하세요 · 30초 동안 기다립니다" else "듣기 ON · ‘헤이 헤르메스’ 대기")
+            state(if (followup) AppText.get(R.string.rt_followup, "이어 말하세요 · 30초 동안 기다립니다") else AppText.wakeWait())
             while (active()) {
                 if (triggered) end.checkWallTime(android.os.SystemClock.elapsedRealtime() - captureStartedAt)
                 val n = audio.read(block, 0, block.size, AudioRecord.READ_NON_BLOCKING)
@@ -79,7 +79,7 @@ internal class HandsfreeCapture(
                         triggered = true
                         captureStartedAt = android.os.SystemClock.elapsedRealtime()
                         typedState(ServiceUiPublication.CaptureEvent.CAPTURING)
-                        state("요청 듣는 중 · 말을 마치면 자동 전송")
+                        state(AppText.get(R.string.rt_capturing, "요청 듣는 중 · 말을 마치면 자동 전송"))
                         val allowed = minOf(ringSize.toLong(), maxOf(0L, totalSamples-detector.wakeEndSample)).toInt()
                         val start=(ringPos-allowed+ring.size)%ring.size
                         for (i in 0 until allowed) { val v=ring[(start+i)%ring.size].toInt(); capture.write(v and 255); capture.write((v ushr 8) and 255) }

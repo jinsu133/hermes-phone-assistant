@@ -291,6 +291,8 @@
     <string name="mcp_notif_title">Conexão do celular com o Hermes</string>
     <string name="mcp_notif_text">Conexão no dispositivo · leitura de tela por acessibilidade e ações aprovadas</string>
     <string name="rt_followup">Continue falando · aguardando 30 segundos</string>
+    <string name="overlay_close_listening">Fecha ao desligar a escuta</string>
+    <string name="overlay_close_reply">Fecha após a resposta · máx. %1$s</string>
     <string name="rt_capturing">Ouvindo seu pedido · envia quando você parar de falar</string>
     <string name="rt_request_off">Pedido de voz desligado</string>
     <string name="rt_request_timeout">O tempo do pedido de voz acabou.</string>

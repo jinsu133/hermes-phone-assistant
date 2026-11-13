@@ -13,6 +13,8 @@ internal class OptionalOverlayController(private val window: Window,
         fun recognizing(active: Boolean) {}
         fun visualPhase(phase: UiPhase) {}
         fun finalPreview(active: Boolean) {}
+        /** When the window will close on its own; null clears the line. */
+        fun closeHint(text: String?) {}
     }
     companion object {
         const val SOURCE_TTL_MS = 30_000L
@@ -119,14 +121,37 @@ internal class OptionalOverlayController(private val window: Window,
             window.finalPreview(preview != null)
             if (!window.show(text)) { failed = true; hide() } else {
                 window.visualPhase(state.phase)
+                window.closeHint(closeHint(s, checkNotNull(next), now))
                 // Hints are presentation only; they never alter admissibility or voice authority.
                 window.recognizing(state.phase == UiPhase.CAPTURING || state.phase == UiPhase.SUBMITTING)
                 window.speaking(state.phase == UiPhase.PLAYING)
             }
         } catch (_: RuntimeException) { failed = true; hide() }
     }
+    private var manualRequest: VoiceOwnerStamp? = null
+    private var manualStartedAt = 0L
+
+    /** Hands-free listening never times out, so the window closes only when listening is
+     * turned off. A manual request closes after its reply, at the latest at the request limit. */
+    private fun closeHint(s: ServiceUiPublication.Snapshot, stamp: VoiceOwnerStamp, now: Long): String? =
+        when (s.mode) {
+            ServiceUiPublication.Mode.HANDSFREE -> {
+                manualRequest = null
+                AppText.get(R.string.overlay_close_listening, "듣기를 끄면 닫혀요")
+            }
+            ServiceUiPublication.Mode.MANUAL -> {
+                if (manualRequest?.let { sameGeneration(it, stamp) } != true) { manualRequest = stamp; manualStartedAt = now }
+                val left = (VoiceRequestService.REQUEST_LIMIT_MS - (now - manualStartedAt)).coerceAtLeast(0L) / 1000L
+                val time = "%d:%02d".format(left / 60, left % 60)
+                AppText.get(R.string.overlay_close_reply, "답변이 끝나면 닫혀요 · 최대 $time", time)
+            }
+            else -> null
+        }
+
     private fun hide() {
+        manualRequest = null
         try {
+            window.closeHint(null)
             window.speaking(false)
             window.recognizing(false)
             window.hide()

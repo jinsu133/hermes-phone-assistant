@@ -16,14 +16,16 @@ class OptionalOverlayControllerTest {
             text = title; maxWindows = maxOf(maxWindows, liveWindows); return true
         }
         override fun hide() { if (text != null) liveWindows--; text = null }
+        var hint: String? = null
+        override fun closeHint(text: String?) { hint = text }
     }
-    private class Rig {
+    private class Rig(mode: ServiceUiPublication.Mode = ServiceUiPublication.Mode.HANDSFREE) {
         var now = 100L
         val window = Window()
         val queued = ArrayDeque<Runnable>()
         val store = UiObservationStore("repo") { queued.add(it) }
         var publisher = ServiceUiPublication(Any()) { now }
-        var scope = publisher.start(1, ServiceUiPublication.Mode.HANDSFREE)
+        var scope = publisher.start(1, mode)
         val controller = OptionalOverlayController(window) { now }
         val token = controller.attach("repo", null)
         var sequence = 0L
@@ -34,6 +36,17 @@ class OptionalOverlayControllerTest {
         }
         fun emit() { controller.offer(token, state()) }
         fun phase() { publisher.phase(scope, ServiceUiPublication.Phase.WAITING_REPLY); emit() }
+    }
+    @Test fun handsfreeHintSaysListeningOffClosesIt() {
+        val r = Rig(); r.emit()
+        assertEquals("듣기를 끄면 닫혀요", r.window.hint)
+        r.publisher.off(r.scope, true); r.emit(); assertNull(r.window.hint)
+    }
+    @Test fun manualHintCountsDownTheRequestLimit() {
+        val r = Rig(ServiceUiPublication.Mode.MANUAL); r.emit()
+        assertEquals("답변이 끝나면 닫혀요 · 최대 9:00", r.window.hint)
+        r.now += 2_000; r.emit(); r.controller.refresh()
+        assertEquals("답변이 끝나면 닫혀요 · 최대 8:58", r.window.hint)
     }
     @Test fun consentDefaultsOffDespitePermission() {
         val r = Rig(); r.controller.configure(false, true, true); r.emit()

@@ -291,6 +291,8 @@
     <string name="mcp_notif_title">การเชื่อมต่อโทรศัพท์ Hermes</string>
     <string name="mcp_notif_text">เชื่อมต่อภายในเครื่อง · อ่านหน้าจอผ่านการช่วยเหลือพิเศษและการกระทำที่อนุมัติ</string>
     <string name="rt_followup">พูดต่อได้เลย · รอ 30 วินาที</string>
+    <string name="overlay_close_listening">ปิดเมื่อปิดการฟัง</string>
+    <string name="overlay_close_reply">ปิดหลังตอบเสร็จ · สูงสุด %1$s</string>
     <string name="rt_capturing">กำลังฟังคำขอ · จะส่งอัตโนมัติเมื่อคุณหยุดพูด</string>
     <string name="rt_request_off">คำขอเสียงปิดอยู่</string>
     <string name="rt_request_timeout">หมดเวลาสำหรับคำขอเสียงแล้ว</string>

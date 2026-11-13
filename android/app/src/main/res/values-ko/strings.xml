@@ -291,6 +291,8 @@
     <string name="mcp_notif_title">Hermes 휴대폰 연결</string>
     <string name="mcp_notif_text">기기 내부 연결 · 접근성 화면 조회와 승인된 조작</string>
     <string name="rt_followup">이어 말하세요 · 30초 동안 기다립니다</string>
+    <string name="overlay_close_listening">듣기를 끄면 닫혀요</string>
+    <string name="overlay_close_reply">답변이 끝나면 닫혀요 · 최대 %1$s</string>
     <string name="rt_capturing">요청 듣는 중 · 말을 마치면 자동 전송</string>
     <string name="rt_request_off">음성 요청 OFF</string>
     <string name="rt_request_timeout">음성 요청 시간 제한이 끝났습니다.</string>

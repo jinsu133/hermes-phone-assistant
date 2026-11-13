@@ -291,6 +291,8 @@
     <string name="mcp_notif_title">Hermes phone connection</string>
     <string name="mcp_notif_text">On-device connection · accessibility screen reading and approved actions</string>
     <string name="rt_followup">Keep talking · waiting 30 seconds</string>
+    <string name="overlay_close_listening">Closes when listening is turned off</string>
+    <string name="overlay_close_reply">Closes after the reply · max %1$s</string>
     <string name="rt_capturing">Listening to your request · sends when you stop talking</string>
     <string name="rt_request_off">Voice request OFF</string>
     <string name="rt_request_timeout">The voice request time limit ran out.</string>

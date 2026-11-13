@@ -291,6 +291,8 @@
     <string name="mcp_notif_title">Koneksi ponsel Hermes</string>
     <string name="mcp_notif_text">Koneksi di perangkat · membaca layar lewat aksesibilitas dan tindakan yang disetujui</string>
     <string name="rt_followup">Silakan lanjut bicara · menunggu 30 detik</string>
+    <string name="overlay_close_listening">Tertutup saat mendengarkan dimatikan</string>
+    <string name="overlay_close_reply">Tertutup setelah jawaban · maks %1$s</string>
     <string name="rt_capturing">Mendengarkan permintaan · terkirim otomatis saat Anda berhenti bicara</string>
     <string name="rt_request_off">Permintaan suara MATI</string>
     <string name="rt_request_timeout">Batas waktu permintaan suara telah habis.</string>

@@ -49,7 +49,7 @@ class VoiceRequestService : Service() {
         const val NOTIFICATION = 401
         private const val SAMPLE_RATE = 16000
         private const val CAPTURE_LIMIT_MS = 30_000L
-        private const val REQUEST_LIMIT_MS = 9 * 60_000L
+        internal const val REQUEST_LIMIT_MS = 9 * 60_000L
         private const val REPLY_WAIT_MS = 540_000L
         private const val TTS_WAIT_MS = 180_000L
         private const val MIN_PCM_BYTES = 3200

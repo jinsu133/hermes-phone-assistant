@@ -45,6 +45,7 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
         const val PAD_V_DP = 10
         const val MASCOT_DP = 72
         const val TEXT_SP = 14f
+        const val HINT_SP = 11f
         const val FADE_DP = 14
         const val SCROLL_TICK_MS = 40L
         const val WINDOW_ALPHA_CEILING = 0.75f
@@ -61,6 +62,7 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
     private val manager = context.getSystemService(WindowManager::class.java)
     private var view: Capsule? = null
     private var label: TextView? = null
+    private var hint: TextView? = null
     private var mascot: Mascot? = null
     private var cardBackground: GradientDrawable? = null
     /** Theme changes recolour the live card; the state glow keeps its own colours. */
@@ -68,6 +70,7 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
         val palette = AppTheme.palette
         cardBackground?.setColor(palette.overlayMatte)
         label?.setTextColor(palette.overlayInk)
+        hint?.setTextColor(palette.overlayInk)
         mascot?.invalidate()
         view?.invalidate()
     }
@@ -166,7 +169,23 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
             importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
             setTextIsSelectable(false)
         }
-        addView(label, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
+        hint = TextView(context).apply {
+            setTextColor(AppTheme.palette.overlayInk)
+            alpha = 0.7f
+            textSize = HINT_SP
+            maxLines = 1
+            ellipsize = android.text.TextUtils.TruncateAt.END
+            setPadding(dp(10), 0, 0, 0)
+            visibility = View.GONE
+            isClickable = false; isLongClickable = false; isFocusable = false
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+        // The column shares the card's fixed height; the hint line only narrows the text viewport.
+        addView(LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            addView(label, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, 0, 1f))
+            addView(hint, LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, LinearLayout.LayoutParams.WRAP_CONTENT))
+        }, LinearLayout.LayoutParams(0, LinearLayout.LayoutParams.MATCH_PARENT, 1f))
     }
 
     private fun params(width: Int, height: Int): WindowManager.LayoutParams {
@@ -214,6 +233,7 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
             view = null
             cardBackground = null
             label = null
+            hint = null
             mascot = null
         } catch (_: RuntimeException) {
             // Keep the handle and never add another window when removal is uncertain.
@@ -228,6 +248,12 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
         if (active == showingFinal) return
         showingFinal = active
         if (active) startFollowing() else stopFollowing()
+    }
+    override fun closeHint(text: String?) {
+        val target = hint ?: return
+        if (text.isNullOrEmpty()) { target.visibility = View.GONE; return }
+        if (target.text.toString() != text) target.text = text
+        target.visibility = View.VISIBLE
     }
     override fun visualPhase(phase: UiPhase) { view?.visualPhase(phase); mascot?.visualPhase(phase) }
 

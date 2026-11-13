@@ -291,6 +291,8 @@
     <string name="mcp_notif_title">Kết nối điện thoại Hermes</string>
     <string name="mcp_notif_text">Kết nối trên thiết bị · đọc màn hình qua hỗ trợ tiếp cận và thao tác đã duyệt</string>
     <string name="rt_followup">Hãy nói tiếp · đang chờ 30 giây</string>
+    <string name="overlay_close_listening">Đóng khi tắt nghe</string>
+    <string name="overlay_close_reply">Đóng sau khi trả lời · tối đa %1$s</string>
     <string name="rt_capturing">Đang nghe yêu cầu · tự gửi khi bạn ngừng nói</string>
     <string name="rt_request_off">Yêu cầu giọng nói TẮT</string>
     <string name="rt_request_timeout">Đã hết thời gian của yêu cầu giọng nói.</string>

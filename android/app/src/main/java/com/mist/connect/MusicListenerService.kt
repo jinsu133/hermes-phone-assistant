@@ -18,21 +18,21 @@ class MusicListenerService : NotificationListenerService() {
                 val componentName = ComponentName(context, MusicListenerService::class.java)
                 val controllers = msm.getActiveSessions(componentName)
 
-                if (controllers.isEmpty()) return "未在播放音乐"
+                if (controllers.isEmpty()) return "No music playing"
 
                 val controller = controllers[0]
-                val metadata = controller.metadata ?: return "未在播放音乐"
+                val metadata = controller.metadata ?: return "No music playing"
                 val state = controller.playbackState
 
-                val title = metadata.getString(android.media.MediaMetadata.METADATA_KEY_TITLE) ?: "未知"
-                val artist = metadata.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST) ?: "未知"
+                val title = metadata.getString(android.media.MediaMetadata.METADATA_KEY_TITLE) ?: "Unknown"
+                val artist = metadata.getString(android.media.MediaMetadata.METADATA_KEY_ARTIST) ?: "Unknown"
                 val album = metadata.getString(android.media.MediaMetadata.METADATA_KEY_ALBUM) ?: ""
 
-                val playing = if (state?.state == android.media.session.PlaybackState.STATE_PLAYING) "播放中" else "已暂停"
+                val playing = if (state?.state == android.media.session.PlaybackState.STATE_PLAYING) "playing" else "paused"
 
                 val info = StringBuilder()
                 info.append("$title - $artist")
-                if (album.isNotEmpty()) info.append("（$album）")
+                if (album.isNotEmpty()) info.append(" ($album)")
                 info.append(" [$playing]")
 
                 val pkg = controller.packageName
@@ -47,7 +47,7 @@ class MusicListenerService : NotificationListenerService() {
                 info.append(" - $appName")
                 info.toString()
             } catch (e: Exception) {
-                "获取播放信息失败：${e.message}"
+                "Failed to read playback info: ${e.message}"
             }
         }
     }

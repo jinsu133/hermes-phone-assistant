@@ -82,7 +82,7 @@ class LCAccessibilityService : AccessibilityService() {
         if (focused.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)) return true
 
         val clipboard = getSystemService(CLIPBOARD_SERVICE) as android.content.ClipboardManager
-        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("MistConnect输入", text))
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("MistConnect input", text))
         return focused.performAction(AccessibilityNodeInfo.ACTION_PASTE)
     }
 
@@ -109,7 +109,7 @@ class LCAccessibilityService : AccessibilityService() {
         return JSONObject().apply {
             put("available", root != null)
             if (root == null) {
-                put("error", "rootInActiveWindow为空，请确认无障碍服务已开启且允许读取窗口内容")
+                put("error", "rootInActiveWindow is null; make sure the accessibility service is on and allowed to read window content")
             } else {
                 put("root", nodeToJson(root, 0, maxDepth.coerceIn(1, 20), includeBounds))
             }

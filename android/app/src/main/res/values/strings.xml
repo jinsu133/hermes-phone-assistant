@@ -401,4 +401,7 @@
     <string name="rt_diag_no_original">No original recording is kept.</string>
     <string name="rt_diag_kept">Original kept · you can delete it after review.</string>
     <string name="rt_delete">Delete</string>
+    <string name="alarm_default_message">Your alarm is ringing</string>
+    <string name="alarm_channel">Alarms</string>
+    <string name="alarm_stop">Turn off alarm</string>
 </resources>

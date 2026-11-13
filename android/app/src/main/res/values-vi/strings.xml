@@ -401,4 +401,7 @@
     <string name="rt_diag_no_original">Không có bản gốc nào được giữ.</string>
     <string name="rt_diag_kept">Đã giữ bản gốc · có thể xóa sau khi xem xét.</string>
     <string name="rt_delete">Xóa</string>
+    <string name="alarm_default_message">Báo thức đang reo</string>
+    <string name="alarm_channel">Báo thức</string>
+    <string name="alarm_stop">Tắt báo thức</string>
 </resources>

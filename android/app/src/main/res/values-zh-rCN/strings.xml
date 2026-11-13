@@ -401,4 +401,7 @@
     <string name="rt_diag_no_original">没有保留的原始录音。</string>
     <string name="rt_diag_kept">已确认保留原始录音 · 检查后可删除。</string>
     <string name="rt_delete">删除</string>
+    <string name="alarm_default_message">闹钟响了</string>
+    <string name="alarm_channel">闹钟</string>
+    <string name="alarm_stop">关闭闹钟</string>
 </resources>

@@ -401,4 +401,7 @@
     <string name="rt_diag_no_original">보관된 원본이 없습니다.</string>
     <string name="rt_diag_kept">원본 보관 확인 · 검토 후 삭제할 수 있습니다.</string>
     <string name="rt_delete">삭제</string>
+    <string name="alarm_default_message">알람이 울리고 있습니다</string>
+    <string name="alarm_channel">알람</string>
+    <string name="alarm_stop">알람 끄기</string>
 </resources>

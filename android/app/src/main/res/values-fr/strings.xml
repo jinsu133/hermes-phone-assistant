@@ -401,4 +401,7 @@
     <string name="rt_diag_no_original">Aucun enregistrement original n’est conservé.</string>
     <string name="rt_diag_kept">Original conservé · vous pouvez le supprimer après examen.</string>
     <string name="rt_delete">Supprimer</string>
+    <string name="alarm_default_message">Votre alarme sonne</string>
+    <string name="alarm_channel">Alarmes</string>
+    <string name="alarm_stop">Arrêter l’alarme</string>
 </resources>

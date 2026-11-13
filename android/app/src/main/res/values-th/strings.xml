@@ -401,4 +401,7 @@
     <string name="rt_diag_no_original">ไม่มีต้นฉบับที่เก็บไว้</string>
     <string name="rt_diag_kept">เก็บต้นฉบับไว้แล้ว · ลบได้หลังตรวจเสร็จ</string>
     <string name="rt_delete">ลบ</string>
+    <string name="alarm_default_message">นาฬิกาปลุกกำลังดัง</string>
+    <string name="alarm_channel">นาฬิกาปลุก</string>
+    <string name="alarm_stop">ปิดนาฬิกาปลุก</string>
 </resources>

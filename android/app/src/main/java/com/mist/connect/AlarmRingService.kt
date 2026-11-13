@@ -28,7 +28,7 @@ class AlarmRingService : Service() {
             return START_NOT_STICKY
         }
 
-        val message = intent?.getStringExtra("message") ?: "闹钟响了"
+        val message = intent?.getStringExtra("message") ?: getString(R.string.alarm_default_message)
 
         createChannel()
         startForeground(NOTIFICATION_ID, buildAlarmNotification(message))
@@ -78,7 +78,7 @@ class AlarmRingService : Service() {
 
     private fun createChannel() {
         val channel = NotificationChannel(
-            CHANNEL_ID, "MistConnect闹钟",
+            CHANNEL_ID, getString(R.string.alarm_channel),
             NotificationManager.IMPORTANCE_HIGH
         ).apply {
             enableVibration(true)
@@ -99,11 +99,11 @@ class AlarmRingService : Service() {
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
-            .setContentTitle("MistConnect")
+            .setContentTitle(getString(R.string.app_name))
             .setContentText(message)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setOngoing(true)
-            .addAction(android.R.drawable.ic_delete, "关闭闹钟", stopPending)
+            .addAction(android.R.drawable.ic_delete, getString(R.string.alarm_stop), stopPending)
             .build()
     }
 }

@@ -401,4 +401,7 @@
     <string name="rt_diag_no_original">Nenhuma gravação original está guardada.</string>
     <string name="rt_diag_kept">Original guardado · você pode excluí-lo após a revisão.</string>
     <string name="rt_delete">Excluir</string>
+    <string name="alarm_default_message">Seu alarme está tocando</string>
+    <string name="alarm_channel">Alarmes</string>
+    <string name="alarm_stop">Desligar alarme</string>
 </resources>

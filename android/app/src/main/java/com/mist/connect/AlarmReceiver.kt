@@ -7,7 +7,7 @@ import android.os.Build
 
 class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        val message = intent.getStringExtra("message") ?: "闹钟响了"
+        val message = intent.getStringExtra("message") ?: context.getString(R.string.alarm_default_message)
         val serviceIntent = Intent(context, AlarmRingService::class.java).apply {
             putExtra("message", message)
         }

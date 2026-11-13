@@ -401,4 +401,7 @@
     <string name="rt_diag_no_original">保管された原本はありません。</string>
     <string name="rt_diag_kept">原本の保管を確認 · 確認後に削除できます。</string>
     <string name="rt_delete">削除</string>
+    <string name="alarm_default_message">アラームが鳴っています</string>
+    <string name="alarm_channel">アラーム</string>
+    <string name="alarm_stop">アラームを止める</string>
 </resources>

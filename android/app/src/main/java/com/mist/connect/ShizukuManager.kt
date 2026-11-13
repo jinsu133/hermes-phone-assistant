@@ -111,10 +111,10 @@ class ShizukuManager(private val context: Context) {
     }
 
     fun executeShell(command: String): String {
-        if (!isRunning()) return "Shizuku 未运行，请先启动 Shizuku App 或 rpk"
-        if (!isAvailable()) return "Shizuku 未授权，请在 App 内授权"
-        if (!ensureBound()) return "UserService 绑定失败"
-        val svc = userService ?: return "UserService 为空"
+        if (!isRunning()) return "Shizuku is not running; start the Shizuku app or rpk first"
+        if (!isAvailable()) return "Shizuku is not authorized; authorize it in the app"
+        if (!ensureBound()) return "UserService bind failed"
+        val svc = userService ?: return "UserService is null"
         return try {
             svc.exec(command) ?: "(null)"
         } catch (e: Exception) {
@@ -124,10 +124,10 @@ class ShizukuManager(private val context: Context) {
                 try {
                     return userService?.exec(command) ?: "retry null"
                 } catch (e2: Exception) {
-                    return "执行异常: ${e2.message}"
+                    return "Execution error: ${e2.message}"
                 }
             }
-            "执行异常: ${e.message}"
+            "Execution error: ${e.message}"
         }
     }
 }

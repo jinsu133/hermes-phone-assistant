@@ -71,8 +71,8 @@ internal object ActionConfirmation {
         main.postDelayed({ synchronized(this) { if(pending === p) { cancelAll(); pending=null } } },ttl+300000)
         return status(id).put("confirmation_prompt",prompt.substringBefore("\n\n기기 화면 원문:"))
             .put("voice_phrase",phrase).put("action_digest",digest)
-            .put("instruction",if(voiceRequest.isNotEmpty()) "앱이 명시적 음성 허용을 기다립니다. 도구 결과를 받은 뒤 다음 단계를 계속하세요."
-                else "휴대폰 확인 화면에서 승인하거나 취소해 주세요. approval_status로 결과를 조회하세요.")
+            .put("instruction",if(voiceRequest.isNotEmpty()) "The app is waiting for explicit voice approval. Continue with the next step after you receive the tool result."
+                else "Ask the user to approve or cancel on the phone confirmation screen. Check the result with approval_status.")
     }
     fun decideVoice(p: Pending, response: JSONObject) {
         if (p.voiceRequest != VoiceRequestService.activeRequestId || !VoiceRequestService.handsfreeActive) return

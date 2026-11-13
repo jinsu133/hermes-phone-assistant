@@ -401,4 +401,7 @@
     <string name="rt_diag_no_original">Es ist keine Originalaufnahme gespeichert.</string>
     <string name="rt_diag_kept">Original behalten · kann nach der Prüfung gelöscht werden.</string>
     <string name="rt_delete">Löschen</string>
+    <string name="alarm_default_message">Dein Wecker klingelt</string>
+    <string name="alarm_channel">Wecker</string>
+    <string name="alarm_stop">Wecker ausschalten</string>
 </resources>

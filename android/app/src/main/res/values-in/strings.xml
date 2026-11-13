@@ -401,4 +401,7 @@
     <string name="rt_diag_no_original">Tidak ada rekaman asli yang disimpan.</string>
     <string name="rt_diag_kept">Rekaman asli disimpan · dapat dihapus setelah ditinjau.</string>
     <string name="rt_delete">Hapus</string>
+    <string name="alarm_default_message">Alarm Anda berbunyi</string>
+    <string name="alarm_channel">Alarm</string>
+    <string name="alarm_stop">Matikan alarm</string>
 </resources>

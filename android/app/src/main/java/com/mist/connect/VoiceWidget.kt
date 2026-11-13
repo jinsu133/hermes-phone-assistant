@@ -20,6 +20,7 @@ class VoiceWidget : AppWidgetProvider() {
         if (intent.action == EXPIRE) update(context) else super.onReceive(context, intent)
     }
     companion object {
+        @Volatile private var lastRendered: String? = null
         private const val EXPIRE = "com.mist.connect.UI_OBSERVATION_EXPIRED"
         private fun expiryIntent(context: Context) = PendingIntent.getBroadcast(context, 713,
             Intent(context, VoiceWidget::class.java).setAction(EXPIRE),
@@ -39,13 +40,28 @@ class VoiceWidget : AppWidgetProvider() {
         internal fun render(context: Context, snapshot: CompanionUiState, explicitIds: IntArray? = null) {
             val manager = AppWidgetManager.getInstance(context)
             val ids = explicitIds ?: manager.getAppWidgetIds(ComponentName(context, VoiceWidget::class.java))
+            val title = CompanionUiText.title(context, snapshot)
+            val line = HomeStatus.blockerText(snapshot)?.let { context.getString(it) }
+                ?: CompanionUiText.nextStep(context, snapshot)
+            val ready = context.getString(R.string.widget_ready_line,
+                context.getString(if (snapshot.locked) R.string.ready_locked else R.string.ready_unlocked),
+                context.getString(R.string.ready_host) + " " + context.getString(when (snapshot.readiness) {
+                    SetupReadiness.Phase.AVAILABLE -> R.string.ready_ok
+                    SetupReadiness.Phase.UNPAIRED -> R.string.ready_unpaired
+                    SetupReadiness.Phase.UNREACHABLE -> R.string.ready_unreachable
+                    SetupReadiness.Phase.HOST_UNSUPPORTED -> R.string.ready_unsupported
+                    SetupReadiness.Phase.CHECKING -> R.string.ready_checking
+                    SetupReadiness.Phase.UNCHECKED -> R.string.ready_unknown
+                }))
+            // Skip identical redraws: the service refreshes often, but the widget only changes
+            // when what it shows changes. An explicit system update always redraws.
+            val key = listOf(title, line, ready).joinToString("\n")
+            if (explicitIds == null && key == lastRendered) return
+            lastRendered = key
             val views = RemoteViews(context.packageName, R.layout.voice_widget)
-            views.setTextViewText(R.id.voice_state, CompanionUiText.title(snapshot) + "\n" +
-                context.getString(R.string.widget_recent_notice, snapshot.serviceMessage))
-            views.setTextViewText(R.id.voice_lock_state, CompanionUiText.details(snapshot))
-            // Existing compact XML may ellipsize; accessibility gets the complete same observation.
-            views.setContentDescription(R.id.voice_state, CompanionUiText.title(snapshot) + "\n" +
-                snapshot.serviceMessage + "\n" + CompanionUiText.details(snapshot))
+            views.setTextViewText(R.id.voice_state, title)
+            views.setTextViewText(R.id.voice_lock_state, listOf(line, ready).joinToString("\n"))
+            views.setContentDescription(R.id.voice_state, key)
             views.setOnClickPendingIntent(R.id.voice_lock_settings, PendingIntent.getActivity(context, 712,
                 Intent(context, LockSettingsActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
             views.setOnClickPendingIntent(R.id.voice_on, PendingIntent.getActivity(context, 710,

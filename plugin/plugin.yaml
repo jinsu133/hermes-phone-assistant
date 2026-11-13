@@ -1,5 +1,5 @@
 name: hermes-phone-control
-version: "0.20.0"
+version: "0.21.0"
 description: "Voice-driven control of a paired Android phone through Hermes: spoken requests run through the existing conversation, permitted accessibility actions are executed and re-observed, and the verified result is spoken back. Android/Termux companion app required; same-device loopback transport only."
 author: ko_spell
 kind: standalone
@@ -54,9 +54,9 @@ config_schema:
     description: Gateway session route that voice requests join (for example agent:main:telegram:dm:<chat>). Leave empty for a local CLI session. Gateway delivery also needs plugins.entries.hermes-phone-control.allow_gateway_injection true.
   locale:
     type: str
-    choices: [en, ko]
+    choices: [en, ko, ja, zh-cn, de, es, fr, pt-br, hi, id, th, vi]
     default: en
-    description: Language of command replies, spoken status lines and voice-turn guidance.
+    description: Language of command replies, spoken status lines and voice-turn guidance. Korean is a full translation; ja, zh-cn, de, es, fr, pt-br, hi, id, th and vi translate the spoken status lines and use English elsewhere.
   stt_model:
     type: str
     default: on-device-ko

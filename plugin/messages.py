@@ -1,8 +1,9 @@
-"""User-facing and model-facing text. English is the default; Korean ships as a locale.
+"""User-facing and model-facing text. English is the default; Korean ships as a full locale.
 
-``text(ctx, key, **values)`` picks the plugin's ``locale`` setting (``en`` by default, ``ko``
-for Korean) and falls back to English for any missing key. ``register(ctx)`` also offers the
-Korean catalog to Hermes through the public ``ctx.register_locale`` where the host has it, so
+``text(ctx, key, **values)`` picks the plugin's ``locale`` setting (``en`` by default) and falls
+back to English for any missing key. Spoken status lines also ship in ja, zh-cn, de, es, fr,
+pt-br, hi, id, th and vi, the companion app's other languages. ``register(ctx)`` also offers the
+translated catalogs to Hermes through the public ``ctx.register_locale`` where the host has it, so
 language packs and overlays see the same strings. No Hermes i18n internals are imported.
 """
 from __future__ import annotations
@@ -202,7 +203,89 @@ KO: dict[str, str] = {
     "status.calculation": "계산을 실행하고 있습니다.",
 }
 
-LOCALES = {"en": EN, "ko": KO}
+
+# Spoken/overlay status lines for the remaining companion-app languages. Every other key
+# falls back to English.
+_STATUS: dict[str, dict[str, str]] = {
+    "ja": {
+        "status.accepted": "エージェントが回答を準備しています。",
+        "status.phone": "スマートフォンの画面を確認しながら作業しています。",
+        "status.research": "情報を調べています。",
+        "status.document": "文書やコードの下書きを作成・確認しています。",
+        "status.calculation": "計算を実行しています。",
+    },
+    "zh-cn": {
+        "status.accepted": "助手正在准备回答。",
+        "status.phone": "正在查看手机屏幕并进行操作。",
+        "status.research": "正在查找资料。",
+        "status.document": "正在撰写或检查文档和代码草稿。",
+        "status.calculation": "正在进行计算。",
+    },
+    "de": {
+        "status.accepted": "Der Agent bereitet eine Antwort vor.",
+        "status.phone": "Ich arbeite am Telefon und prüfe dabei den Bildschirm.",
+        "status.research": "Ich schlage etwas nach.",
+        "status.document": "Ich schreibe oder prüfe einen Dokument- oder Codeentwurf.",
+        "status.calculation": "Ich führe eine Berechnung aus.",
+    },
+    "es": {
+        "status.accepted": "El agente está preparando una respuesta.",
+        "status.phone": "Estoy trabajando en el teléfono mientras reviso la pantalla.",
+        "status.research": "Estoy buscando información.",
+        "status.document": "Estoy redactando o revisando un borrador de documento o código.",
+        "status.calculation": "Estoy haciendo un cálculo.",
+    },
+    "fr": {
+        "status.accepted": "L'agent prépare une réponse.",
+        "status.phone": "Je travaille sur le téléphone en vérifiant l'écran.",
+        "status.research": "Je recherche des informations.",
+        "status.document": "Je rédige ou vérifie un brouillon de document ou de code.",
+        "status.calculation": "J'effectue un calcul.",
+    },
+    "pt-br": {
+        "status.accepted": "O agente está preparando uma resposta.",
+        "status.phone": "Estou trabalhando no celular enquanto confiro a tela.",
+        "status.research": "Estou pesquisando informações.",
+        "status.document": "Estou escrevendo ou revisando um rascunho de documento ou código.",
+        "status.calculation": "Estou fazendo um cálculo.",
+    },
+    "hi": {
+        "status.accepted": "एजेंट जवाब तैयार कर रहा है।",
+        "status.phone": "फ़ोन की स्क्रीन देखते हुए काम कर रहा हूँ।",
+        "status.research": "जानकारी खोज रहा हूँ।",
+        "status.document": "दस्तावेज़ या कोड का मसौदा लिख या जाँच रहा हूँ।",
+        "status.calculation": "गणना कर रहा हूँ।",
+    },
+    "id": {
+        "status.accepted": "Agen sedang menyiapkan jawaban.",
+        "status.phone": "Sedang bekerja di ponsel sambil memeriksa layar.",
+        "status.research": "Sedang mencari informasi.",
+        "status.document": "Sedang menulis atau memeriksa draf dokumen atau kode.",
+        "status.calculation": "Sedang menjalankan perhitungan.",
+    },
+    "th": {
+        "status.accepted": "เอเจนต์กำลังเตรียมคำตอบ",
+        "status.phone": "กำลังทำงานบนโทรศัพท์และตรวจดูหน้าจอ",
+        "status.research": "กำลังค้นหาข้อมูล",
+        "status.document": "กำลังเขียนหรือตรวจร่างเอกสารหรือโค้ด",
+        "status.calculation": "กำลังคำนวณ",
+    },
+    "vi": {
+        "status.accepted": "Trợ lý đang chuẩn bị câu trả lời.",
+        "status.phone": "Đang thao tác trên điện thoại và kiểm tra màn hình.",
+        "status.research": "Đang tra cứu thông tin.",
+        "status.document": "Đang viết hoặc kiểm tra bản nháp tài liệu hoặc mã.",
+        "status.calculation": "Đang tính toán.",
+    },
+}
+
+LOCALES = {"en": EN, "ko": KO, **_STATUS}
+ENDONYMS = {"en": "English", "ko": "한국어", "ja": "日本語", "zh-cn": "简体中文", "de": "Deutsch",
+            "es": "Español", "fr": "Français", "pt-br": "Português (Brasil)", "hi": "हिन्दी",
+            "id": "Bahasa Indonesia", "th": "ไทย", "vi": "Tiếng Việt"}
+# Android-style and short spellings the operator may use.
+_ALIASES = {"ko-kr": "ko", "zh": "zh-cn", "zh-hans": "zh-cn", "pt": "pt-br", "in": "id",
+            "ja-jp": "ja", "en-us": "en", "en-gb": "en"}
 
 
 def locale(ctx) -> str:
@@ -211,7 +294,11 @@ def locale(ctx) -> str:
     except Exception:
         value = "en"
     value = str(value or "en").strip().lower().replace("_", "-")
-    return "ko" if value in ("ko", "ko-kr") else "en"
+    value = _ALIASES.get(value, value)
+    if value not in LOCALES:
+        value = value.split("-")[0]
+        value = _ALIASES.get(value, value)
+    return value if value in LOCALES else "en"
 
 
 def text(ctx, key: str, **values: Any) -> str:
@@ -231,13 +318,16 @@ def all_texts(key: str) -> tuple[str, ...]:
 
 
 def register(ctx) -> None:
-    """Offer the Korean catalog to Hermes' language layers when the host supports it."""
+    """Offer the translated catalogs to Hermes' language layers when the host supports it."""
     register_locale = getattr(ctx, "register_locale", None)
     if not callable(register_locale):
         return
-    try:
-        register_locale("ko", {f"{NAMESPACE}.{key}": value for key, value in KO.items()},
-                        endonym="한국어")
-    except Exception:
-        # A host that refuses the pack still gets the plugin's own English/Korean selection.
-        pass
+    for code, table in LOCALES.items():
+        if code == "en":
+            continue
+        try:
+            register_locale(code, {f"{NAMESPACE}.{key}": value for key, value in table.items()},
+                            endonym=ENDONYMS[code])
+        except Exception:
+            # A host that refuses a pack still gets the plugin's own selection.
+            pass

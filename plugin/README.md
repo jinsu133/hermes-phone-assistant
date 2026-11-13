@@ -13,7 +13,7 @@ The plugin requires Hermes and the companion on the same Android/Termux device. 
 5. For a messaging-gateway session, set `session_key` and `plugins.entries.hermes-phone-control.allow_gateway_injection: true`; leave `session_key` empty for a local CLI session.
 6. Enable `voice_enabled` and/or `control_enabled` in the plugin settings, then `/voicelink on`.
 
-Command replies, spoken status lines and voice-turn guidance are English by default; set `locale: ko` for Korean.
+Command replies, spoken status lines and voice-turn guidance are English by default; set `locale: ko` for Korean. Spoken status lines (such as "preparing an answer") also follow `locale: ja | zh-cn | de | es | fr | pt-br | hi | id | th | vi`; the rest stays English in those languages.
 
 ## What to know before enabling it
 

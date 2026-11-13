@@ -52,6 +52,12 @@ internal class HandsfreeCapture(
             if (triggered) captureStartedAt = android.os.SystemClock.elapsedRealtime()
             state(if (followup) AppText.get(R.string.rt_followup, "이어 말하세요 · 30초 동안 기다립니다") else AppText.wakeWait())
             while (active()) {
+                val injected = InjectedUtterance.take() // debug harness only; always null in release
+                if (injected != null) {
+                    typedState(ServiceUiPublication.CaptureEvent.CAPTURING)
+                    VoiceDiagnostics.captures.incrementAndGet()
+                    return injected
+                }
                 if (triggered) end.checkWallTime(android.os.SystemClock.elapsedRealtime() - captureStartedAt)
                 val n = audio.read(block, 0, block.size, AudioRecord.READ_NON_BLOCKING)
                 if (n < 0) {

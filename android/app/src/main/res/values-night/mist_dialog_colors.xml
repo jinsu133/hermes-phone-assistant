@@ -5,4 +5,7 @@
     <color name="mist_dialog_ink">#FFF2E6D8</color>
     <color name="mist_dialog_body">#FFD5C4B2</color>
     <color name="mist_dialog_action">#FFE8C895</color>
+    <color name="mist_screen_background">#FF211F1E</color>
+    <color name="mist_primary">#FFE8C895</color>
+    <color name="mist_on_primary">#FF2C241A</color>
 </resources>

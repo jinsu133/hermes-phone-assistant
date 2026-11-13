@@ -9,9 +9,6 @@ import android.os.Handler
 import android.os.Looper
 import android.os.PowerManager
 import android.os.SystemClock
-import android.widget.Button
-import android.widget.LinearLayout
-import android.widget.TextView
 
 /** No credentials, voiceprints, biometrics or transcripts are collected by this activity. */
 internal object UnlockCoordinator {
@@ -56,16 +53,10 @@ class UnlockActivity : Activity() {
         if (!UnlockCoordinator.gate.pending(ticket,SystemClock.elapsedRealtime())) { finish(); return }
         if (android.os.Build.VERSION.SDK_INT >= 27) { setShowWhenLocked(true); setTurnScreenOn(true) }
         else { @Suppress("DEPRECATION") window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SHOW_WHEN_LOCKED or android.view.WindowManager.LayoutParams.FLAG_TURN_SCREEN_ON) }
-        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(android.graphics.Color.WHITE))
         UnlockCoordinator.visible = this
-        setContentView(LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL; setPadding(48,120,48,48); setBackgroundColor(android.graphics.Color.WHITE)
-            addView(TextView(this@UnlockActivity).apply {
-                text = getString(R.string.unlock_prompt)
-                textSize=20f; setTextColor(android.graphics.Color.BLACK)
-            })
-            addView(Button(this@UnlockActivity).apply { text=getString(R.string.unlock_cancel); setOnClickListener { UnlockCoordinator.gate.cancel(ticket); finish() } })
-        })
+        val layout = MistViews.screen(this)
+        layout.addView(MistViews.card(this, getString(R.string.unlock_prompt)))
+        layout.addView(MistViews.button(this, getString(R.string.unlock_cancel), primary = false) { UnlockCoordinator.gate.cancel(ticket); finish() })
         main.postDelayed(timeout,120000)
     }
     override fun onResume() {

@@ -119,31 +119,23 @@ class ActionConfirmationActivity : Activity() {
         if (p == null || p.result != null || getSystemService(KeyguardManager::class.java).isDeviceLocked) { finish(); return }
         ActionConfirmation.visible=this
         window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
-        window.setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.WHITE))
-        setContentView(ScrollView(this).apply {
-            setBackgroundColor(Color.WHITE)
-            addView(LinearLayout(this@ActionConfirmationActivity).apply {
-                orientation=LinearLayout.VERTICAL; setPadding(36,110,36,110)
-                addView(TextView(this@ActionConfirmationActivity).apply {
-                    text=p.prompt; setTextColor(Color.BLACK); textSize=18f
-                })
-                fun addDecision(label: String, allow: Boolean) {
-                    addView(Button(this@ActionConfirmationActivity).apply {
-                        text=label; filterTouchesWhenObscured=true
-                        // Accessibility ACTION_CLICK cannot manufacture this physical touch event.
-                        setOnTouchListener { _, event ->
-                            if (event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED) != 0) return@setOnTouchListener true
-                            if (event.action == MotionEvent.ACTION_UP) {
-                                decided=true; ActionConfirmation.decide(this@ActionConfirmationActivity.id,allow); finish()
-                            }
-                            true
-                        }
-                    })
+        val layout = MistViews.screen(this)
+        layout.addView(MistViews.card(this, p.prompt))
+        fun addDecision(label: String, allow: Boolean) {
+            layout.addView(MistViews.button(this, label, primary = allow).apply {
+                filterTouchesWhenObscured=true
+                // Accessibility ACTION_CLICK cannot manufacture this physical touch event.
+                setOnTouchListener { _, event ->
+                    if (event.flags and (MotionEvent.FLAG_WINDOW_IS_OBSCURED or MotionEvent.FLAG_WINDOW_IS_PARTIALLY_OBSCURED) != 0) return@setOnTouchListener true
+                    if (event.action == MotionEvent.ACTION_UP) {
+                        decided=true; ActionConfirmation.decide(this@ActionConfirmationActivity.id,allow); finish()
+                    }
+                    true
                 }
-                addDecision(getString(R.string.confirm_deny),false)
-                addDecision(getString(R.string.confirm_allow),true)
             })
-        })
+        }
+        addDecision(getString(R.string.confirm_deny),false)
+        addDecision(getString(R.string.confirm_allow),true)
         main.postDelayed({ if (!decided) { ActionConfirmation.cancelAll(); finish() } },120000)
     }
     override fun onDestroy() {

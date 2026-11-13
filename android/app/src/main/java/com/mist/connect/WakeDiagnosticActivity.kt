@@ -27,23 +27,21 @@ class WakeDiagnosticActivity : Activity() {
         super.onCreate(state)
         // Never delete retained diagnostic audio on activity creation.
         window.addFlags(android.view.WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        val box = LinearLayout(this).apply { orientation=LinearLayout.VERTICAL; setPadding(32,90,32,32) }
-        status = TextView(this).apply {
-            textSize=19f
+        val box = MistViews.screen(this)
+        status = MistViews.card(this).apply {
             text=AppText.get(R.string.rt_diag_intro, "60초 로컬 진단\n아직 녹음하지 않습니다.\n\n시작 후 ‘헤이 헤르메스, 티맵 켜 줘’를 자연스럽게 말하고 5초 정도 쉬어 주세요. 중간에 호출어 없는 일반 문장도 말해 주세요.\n\n기기 내부에만 임시 저장합니다. 외부 전송·명령 실행은 하지 않습니다. 원본은 검토가 끝날 때까지 보관하며 직접 삭제할 수 있습니다. 화면을 벗어나면 작업만 중단하고 녹음은 보관합니다.")
         }
         box.addView(status)
-        start=Button(this).apply { text=AppText.get(R.string.rt_diag_start, "60초 진단 녹음 시작"); setOnClickListener { begin() } };box.addView(start)
-        box.addView(Button(this).apply { text=AppText.get(R.string.rt_diag_stop, "작업 중단 · 녹음 보관"); setOnClickListener { active=false } })
-        box.addView(Button(this).apply { text=AppText.get(R.string.rt_diag_delete, "보관한 녹음 삭제"); setOnClickListener {
+        start=MistViews.button(this, AppText.get(R.string.rt_diag_start, "60초 진단 녹음 시작"), primary = true) { begin() };box.addView(start)
+        box.addView(MistViews.button(this, AppText.get(R.string.rt_diag_stop, "작업 중단 · 녹음 보관"), primary = false) { active=false })
+        box.addView(MistViews.button(this, AppText.get(R.string.rt_diag_delete, "보관한 녹음 삭제"), primary = false) {
             android.app.AlertDialog.Builder(this@WakeDiagnosticActivity)
                 .setMessage(AppText.get(R.string.rt_diag_delete_confirm, "보관한 진단 원음을 삭제할까요? 삭제 후 다시 분석할 수 없습니다."))
                 .setNegativeButton(AppText.get(R.string.cancel, "취소"),null).setPositiveButton(AppText.get(R.string.rt_delete, "삭제")) { _,_->
                     if(busy) { deleteRequested=true;active=false }
                     else { val ok=!rawFile.exists() || rawFile.delete();status.text=if(ok) AppText.get(R.string.rt_diag_deleted, "원본을 삭제했습니다.") else AppText.get(R.string.rt_diag_delete_failed, "삭제하지 못했습니다.") }
                 }.show()
-        } })
-        setContentView(ScrollView(this).apply { addView(box) })
+        })
         startService(Intent(this,VoiceRequestService::class.java).setAction(VoiceRequestService.CANCEL_REQUEST))
         stopService(Intent(this,VoiceForegroundService::class.java))
     }

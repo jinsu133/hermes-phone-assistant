@@ -21,6 +21,26 @@ class VoiceWidget : AppWidgetProvider() {
     }
     companion object {
         @Volatile private var lastRendered: String? = null
+        @Volatile private var mascot: Pair<MistPalette, android.graphics.Bitmap>? = null
+
+        /** Card, text, buttons and the Nous girl follow the app theme, not the launcher's. */
+        private fun applyTheme(context: Context, views: RemoteViews, palette: MistPalette) {
+            views.setInt(R.id.widget_root, "setBackgroundResource", palette.widgetCard)
+            views.setInt(R.id.voice_on, "setBackgroundResource", palette.widgetPrimary)
+            views.setInt(R.id.voice_off, "setBackgroundResource", palette.widgetSecondary)
+            views.setInt(R.id.voice_lock_settings, "setBackgroundResource", palette.widgetSecondary)
+            views.setInt(R.id.voice_lock_settings, "setColorFilter", palette.ink)
+            views.setTextColor(R.id.widget_title, palette.ink)
+            views.setTextColor(R.id.voice_state, palette.body)
+            views.setTextColor(R.id.voice_lock_state, palette.body)
+            views.setTextColor(R.id.voice_on, palette.onPrimary)
+            views.setTextColor(R.id.voice_off, palette.ink)
+            val cached = mascot
+            val bitmap = if (cached != null && cached.first === palette) cached.second else
+                MascotArt.portraitBitmap(context, (40 * context.resources.displayMetrics.density).toInt(), palette)
+                    .also { mascot = palette to it }
+            views.setImageViewBitmap(R.id.widget_mascot, bitmap)
+        }
         private const val EXPIRE = "com.mist.connect.UI_OBSERVATION_EXPIRED"
         private fun expiryIntent(context: Context) = PendingIntent.getBroadcast(context, 713,
             Intent(context, VoiceWidget::class.java).setAction(EXPIRE),
@@ -55,13 +75,15 @@ class VoiceWidget : AppWidgetProvider() {
                 }))
             // Skip identical redraws: the service refreshes often, but the widget only changes
             // when what it shows changes. An explicit system update always redraws.
-            val key = listOf(title, line, ready).joinToString("\n")
+            val theme = AppTheme.current
+            val key = listOf(theme.key, title, line, ready).joinToString("\n")
             if (explicitIds == null && key == lastRendered) return
             lastRendered = key
             val views = RemoteViews(context.packageName, R.layout.voice_widget)
             views.setTextViewText(R.id.voice_state, title)
             views.setTextViewText(R.id.voice_lock_state, listOf(line, ready).joinToString("\n"))
-            views.setContentDescription(R.id.voice_state, key)
+            views.setContentDescription(R.id.voice_state, listOf(title, line, ready).joinToString("\n"))
+            applyTheme(context, views, theme.palette)
             views.setOnClickPendingIntent(R.id.voice_lock_settings, PendingIntent.getActivity(context, 712,
                 Intent(context, LockSettingsActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE))
             views.setOnClickPendingIntent(R.id.voice_on, PendingIntent.getActivity(context, 710,

@@ -462,4 +462,8 @@
     <string name="picker_model_follows">Model: mengikuti profil default Hermes (%1$s / %2$s)</string>
     <string name="picker_saved_effort">Tingkat penalaran tersimpan: %1$s</string>
     <string name="rt_pick_follows_default">Model mengikuti profil default Hermes dan tidak dapat diubah di sini.</string>
+    <string name="theme_title">Tema</string>
+    <string name="quick_theme">Tema</string>
+    <string name="theme_basic">Dasar</string>
+    <string name="theme_dark">Gelap</string>
 </resources>

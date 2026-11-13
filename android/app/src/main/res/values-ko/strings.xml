@@ -462,4 +462,8 @@
     <string name="picker_model_follows">모델: Hermes 기본 프로필을 따름 (%1$s / %2$s)</string>
     <string name="picker_saved_effort">저장된 추론 강도: %1$s</string>
     <string name="rt_pick_follows_default">모델은 Hermes 기본 프로필을 따르며 여기서 바꿀 수 없습니다.</string>
+    <string name="theme_title">테마</string>
+    <string name="quick_theme">테마</string>
+    <string name="theme_basic">기본</string>
+    <string name="theme_dark">다크</string>
 </resources>

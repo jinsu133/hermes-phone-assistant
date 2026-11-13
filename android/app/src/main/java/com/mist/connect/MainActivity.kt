@@ -140,6 +140,7 @@ class MainActivity : ComponentActivity() {
         }
         command(HomeCommand.STOP_EVERYTHING, R.string.action_stop_everything, HomeSection.PRIMARY) { stopEverything() }
         command(HomeCommand.OVERLAY_SETTINGS, R.string.action_overlay_settings, HomeSection.EVERYDAY) { OverlaySettingsDialog.show(this) }
+        command(HomeCommand.THEME, R.string.theme_title, HomeSection.EVERYDAY) { ThemeDialog.show(this) }
 
         // Composition only renders values; command effects are registered but never invoked here.
         val immutableActions = actions.toList()

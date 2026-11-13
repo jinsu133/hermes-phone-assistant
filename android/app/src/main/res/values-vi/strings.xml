@@ -462,4 +462,8 @@
     <string name="picker_model_follows">Mô hình: theo hồ sơ mặc định của Hermes (%1$s / %2$s)</string>
     <string name="picker_saved_effort">Mức suy luận đã lưu: %1$s</string>
     <string name="rt_pick_follows_default">Mô hình theo hồ sơ mặc định của Hermes và không thể đổi ở đây.</string>
+    <string name="theme_title">Giao diện</string>
+    <string name="quick_theme">Giao diện</string>
+    <string name="theme_basic">Cơ bản</string>
+    <string name="theme_dark">Tối</string>
 </resources>

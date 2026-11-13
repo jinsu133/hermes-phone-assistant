@@ -36,6 +36,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.asImageBitmap
 import com.mist.connect.ui.theme.MistConnectTheme
 
 /** Stateless renderer: state/recomposition/restore cannot call commands. */
@@ -60,7 +63,7 @@ internal fun HomeScreen(state: CompanionUiState, diagnostics: String,
                 ReadinessCard(state, byCommand, onCommand)
                 byCommand[HomeCommand.PERMISSIONS_OVERVIEW]?.let { shown += it.command }
 
-                val quick = listOf(HomeCommand.RECENT_REPLY, HomeCommand.PIN_WIDGET, HomeCommand.OVERLAY_SETTINGS)
+                val quick = listOf(HomeCommand.RECENT_REPLY, HomeCommand.PIN_WIDGET, HomeCommand.OVERLAY_SETTINGS, HomeCommand.THEME)
                     .mapNotNull { byCommand[it] }
                 if (quick.isNotEmpty()) {
                     SectionLabel(stringResource(R.string.home_quick))
@@ -114,9 +117,12 @@ internal fun HomeScreen(state: CompanionUiState, diagnostics: String,
 @Composable
 private fun HomeHeader() {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        // Transparent portrait; the night variant carries a brass outline so black hair reads on dark.
-        Image(painterResource(R.drawable.nous_girl_portrait), contentDescription = null,
-            contentScale = ContentScale.Fit, modifier = Modifier.size(64.dp))
+        // Headset and outline take the current theme's colours.
+        val context = LocalContext.current
+        val theme = AppTheme.state.value
+        val sizePx = with(LocalDensity.current) { 64.dp.roundToPx() }
+        val portrait = remember(theme, sizePx) { MascotArt.portraitBitmap(context, sizePx, theme.palette).asImageBitmap() }
+        Image(portrait, contentDescription = null, contentScale = ContentScale.Fit, modifier = Modifier.size(64.dp))
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text("Hermes", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
                 letterSpacing = 1.5.sp)
@@ -280,6 +286,7 @@ private fun QuickTile(action: HomeAction, modifier: Modifier, onCommand: (HomeCo
             val label = when (action.command) {
                 HomeCommand.PIN_WIDGET -> stringResource(R.string.quick_widget)
                 HomeCommand.OVERLAY_SETTINGS -> stringResource(R.string.quick_overlay)
+                HomeCommand.THEME -> stringResource(R.string.quick_theme)
                 else -> action.title
             }
             Text(label, style = MaterialTheme.typography.labelLarge, textAlign = TextAlign.Center, maxLines = 2)

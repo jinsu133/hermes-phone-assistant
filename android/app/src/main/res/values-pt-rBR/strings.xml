@@ -462,4 +462,8 @@
     <string name="picker_model_follows">Modelo: segue o perfil padrão do Hermes (%1$s / %2$s)</string>
     <string name="picker_saved_effort">Esforço de raciocínio salvo: %1$s</string>
     <string name="rt_pick_follows_default">O modelo segue o perfil padrão do Hermes e não pode ser alterado aqui.</string>
+    <string name="theme_title">Tema</string>
+    <string name="quick_theme">Tema</string>
+    <string name="theme_basic">Básico</string>
+    <string name="theme_dark">Escuro</string>
 </resources>

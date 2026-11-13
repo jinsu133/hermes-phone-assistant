@@ -462,4 +462,8 @@
     <string name="picker_model_follows">โมเดล: ตามโปรไฟล์เริ่มต้นของ Hermes (%1$s / %2$s)</string>
     <string name="picker_saved_effort">ระดับการให้เหตุผลที่บันทึกไว้: %1$s</string>
     <string name="rt_pick_follows_default">โมเดลเป็นไปตามโปรไฟล์เริ่มต้นของ Hermes และเปลี่ยนที่นี่ไม่ได้</string>
+    <string name="theme_title">ธีม</string>
+    <string name="quick_theme">ธีม</string>
+    <string name="theme_basic">พื้นฐาน</string>
+    <string name="theme_dark">มืด</string>
 </resources>

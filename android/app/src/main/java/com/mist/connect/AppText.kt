@@ -27,5 +27,6 @@ class HermesApp : Application() {
         super.onCreate()
         AppText.init(this)
         WakeSettings.init(this)
+        AppTheme.init(this)
     }
 }

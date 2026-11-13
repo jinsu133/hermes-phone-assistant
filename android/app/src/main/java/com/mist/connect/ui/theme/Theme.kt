@@ -1,11 +1,12 @@
 package com.mist.connect.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import com.mist.connect.AppTheme
+import com.mist.connect.AppThemeId
 
 // The approved Nous Girl assistant icon supplies the warm paper, ink and brass palette.
 // Keep semantic error colors distinct; do not use the icon palette to imply a service state.
@@ -66,10 +67,14 @@ private val DarkColorScheme = darkColorScheme(
 )
 
 @Composable
-fun MistConnectTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+internal fun MistConnectTheme(
+    theme: AppThemeId = AppTheme.state.value,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
+    // The app's own theme choice, not the phone's dark mode.
+    val colorScheme = when (theme) {
+        AppThemeId.BASIC -> LightColorScheme
+        AppThemeId.DARK -> DarkColorScheme
+    }
     MaterialTheme(colorScheme = colorScheme, typography = Typography, content = content)
 }

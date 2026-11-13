@@ -462,4 +462,8 @@
     <string name="picker_model_follows">モデル: Hermes の既定プロファイルに従う（%1$s / %2$s）</string>
     <string name="picker_saved_effort">保存済みの推論強度: %1$s</string>
     <string name="rt_pick_follows_default">モデルは Hermes の既定プロファイルに従うため、ここでは変更できません。</string>
+    <string name="theme_title">テーマ</string>
+    <string name="quick_theme">テーマ</string>
+    <string name="theme_basic">ベーシック</string>
+    <string name="theme_dark">ダーク</string>
 </resources>

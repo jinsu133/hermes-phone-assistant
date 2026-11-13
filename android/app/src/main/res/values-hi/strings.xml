@@ -462,4 +462,8 @@
     <string name="picker_model_follows">मॉडल: Hermes की डिफ़ॉल्ट प्रोफ़ाइल के अनुसार (%1$s / %2$s)</string>
     <string name="picker_saved_effort">सेव किया गया रीज़निंग स्तर: %1$s</string>
     <string name="rt_pick_follows_default">मॉडल Hermes की डिफ़ॉल्ट प्रोफ़ाइल के अनुसार चलता है और यहाँ बदला नहीं जा सकता।</string>
+    <string name="theme_title">थीम</string>
+    <string name="quick_theme">थीम</string>
+    <string name="theme_basic">बेसिक</string>
+    <string name="theme_dark">डार्क</string>
 </resources>

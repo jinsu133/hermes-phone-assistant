@@ -462,4 +462,8 @@
     <string name="picker_model_follows">模型：跟随 Hermes 默认配置文件（%1$s / %2$s）</string>
     <string name="picker_saved_effort">已保存的推理强度：%1$s</string>
     <string name="rt_pick_follows_default">模型跟随 Hermes 默认配置文件，无法在此更改。</string>
+    <string name="theme_title">主题</string>
+    <string name="quick_theme">主题</string>
+    <string name="theme_basic">基础</string>
+    <string name="theme_dark">深色</string>
 </resources>

@@ -48,9 +48,6 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
         const val FADE_DP = 14
         const val SCROLL_TICK_MS = 40L
         const val WINDOW_ALPHA_CEILING = 0.75f
-        /** Cream matte shared by the card and the mascot's faded edge. */
-        val MATTE = Color.rgb(253, 236, 217)
-        val INK = Color.rgb(38, 34, 31)
         /** Owner-confirmed anchor: 2/8 from the top of the display. */
         const val ANCHOR_NUMERATOR = 2
         const val ANCHOR_DENOMINATOR = 8
@@ -65,6 +62,15 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
     private var view: Capsule? = null
     private var label: TextView? = null
     private var mascot: Mascot? = null
+    private var cardBackground: GradientDrawable? = null
+    /** Theme changes recolour the live card; the state glow keeps its own colours. */
+    private val themeListener: () -> Unit = {
+        val palette = AppTheme.palette
+        cardBackground?.setColor(palette.overlayMatte)
+        label?.setTextColor(palette.overlayInk)
+        mascot?.invalidate()
+        view?.invalidate()
+    }
     private var showingFinal = false
     private var playing = false
     private var follower: Runnable? = null
@@ -85,6 +91,7 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
         val capsule = build()
         updateText(title)
         view = capsule // retain ownership before add, including partial failure
+        AppTheme.observe(themeListener)
         try { manager.addView(capsule, params(cardWidth(), cardHeight())) } catch (_: RuntimeException) {
             poisoned = true; hide(); return false
         }
@@ -141,13 +148,13 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
         importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
         // Opaque matte inside the window: the one window alpha composites BOTH mascot and card.
         background = GradientDrawable().apply {
-            setColor(MATTE)
+            setColor(AppTheme.palette.overlayMatte)
             cornerRadius = dp(CORNER_DP).toFloat()
-        }
+        }.also { cardBackground = it }
         mascot = Mascot(context)
         addView(mascot, LinearLayout.LayoutParams(dp(MASCOT_DP), dp(MASCOT_DP)))
         label = TextView(context).apply {
-            setTextColor(INK)
+            setTextColor(AppTheme.palette.overlayInk)
             textSize = TEXT_SP
             setLineSpacing(0f, 1.05f)
             setPadding(dp(10), 0, 0, 0)
@@ -203,7 +210,9 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
         stopFollowing()
         try {
             manager.removeViewImmediate(owned)
+            AppTheme.forget(themeListener)
             view = null
+            cardBackground = null
             label = null
             mascot = null
         } catch (_: RuntimeException) {
@@ -280,11 +289,10 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
         }
     }
 
-    /** Raster mascot driven only by the accepted service phase. Its edge fades into the card's
-     * matte, so no rectangular patch shows whatever the frame's own background tint is. */
+    /** Raster mascot driven only by the accepted service phase. The paper background is
+     * transparent; headset and outline take the theme's colours and the edge fades softly. */
     private class Mascot(context: Context) : View(context) {
-        private val atlas = checkNotNull(BitmapFactory.decodeResource(resources, R.drawable.overlay_state_atlas))
-        private val paint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+        private val art = MascotArt.atlas(context)
         private val mask = Paint(Paint.ANTI_ALIAS_FLAG).apply {
             xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
         }
@@ -293,8 +301,8 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
         private var state = UiPhase.WAKE_WAIT
         private var phaseStart = SystemClock.uptimeMillis()
         init {
-            require(atlas.width == MascotPlayback.FRAMES * MascotPlayback.CELL &&
-                atlas.height == MascotPlayback.ROWS * MascotPlayback.CELL)
+            require(art.base.width == MascotPlayback.FRAMES * MascotPlayback.CELL &&
+                art.base.height == MascotPlayback.ROWS * MascotPlayback.CELL)
         }
         fun visualPhase(next: UiPhase) {
             if (next == state) return
@@ -315,7 +323,7 @@ internal class AndroidStatusOverlayWindow(app: Context) : OptionalOverlayControl
             src.set(frame * cell, row * cell, (frame + 1) * cell, (row + 1) * cell)
             dst.set(0f, 0f, width.toFloat(), height.toFloat())
             val layer = canvas.saveLayer(dst, null)
-            canvas.drawBitmap(atlas, src, dst, paint)
+            art.draw(canvas, src, dst, AppTheme.palette)
             canvas.drawRect(dst, mask)
             canvas.restoreToCount(layer)
             if (isAttachedToWindow && isShown) postInvalidateDelayed(MascotPlayback.frameMillis(state))

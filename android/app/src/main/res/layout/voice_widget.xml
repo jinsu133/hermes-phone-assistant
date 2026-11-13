@@ -2,6 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:id="@+id/widget_root"
     android:orientation="vertical"
     android:padding="14dp"
     android:background="@drawable/widget_card">
@@ -13,9 +14,10 @@
         android:gravity="center_vertical">
 
         <ImageView
+            android:id="@+id/widget_mascot"
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:src="@drawable/nous_girl_portrait"
+            android:src="@drawable/nous_girl_portrait_base"
             android:scaleType="fitCenter"
             android:importantForAccessibility="no" />
 
@@ -27,6 +29,7 @@
             android:orientation="vertical">
 
             <TextView
+                android:id="@+id/widget_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:text="@string/widget_title"

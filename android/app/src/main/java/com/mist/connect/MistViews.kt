@@ -13,20 +13,19 @@ import android.widget.LinearLayout
 import android.widget.ScrollView
 import android.widget.TextView
 
-/** App palette for the few screens built from plain Android views (day/night via resources). */
+/** The chosen theme's palette for the few screens built from plain Android views. */
 internal object MistViews {
-    private fun Activity.color(id: Int) = getColor(id)
     private fun Activity.dp(v: Int) = (v * resources.displayMetrics.density).toInt()
 
     /** Paints the window and returns a scrolling column that fills the screen. */
     fun screen(activity: Activity): LinearLayout = with(activity) {
-        window.setBackgroundDrawable(ColorDrawable(color(R.color.mist_screen_background)))
+        window.setBackgroundDrawable(ColorDrawable(AppTheme.palette.background))
         val column = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(24), dp(48), dp(24), dp(32))
         }
         setContentView(ScrollView(this).apply {
-            setBackgroundColor(color(R.color.mist_screen_background))
+            setBackgroundColor(AppTheme.palette.background)
             isFillViewport = true
             fitsSystemWindows = true
             addView(column)
@@ -38,7 +37,7 @@ internal object MistViews {
         this.text = text
         textSize = 24f
         typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        setTextColor(activity.getColor(R.color.mist_dialog_ink))
+        setTextColor(AppTheme.palette.ink)
         setPadding(0, 0, 0, activity.dp(16))
     }
 
@@ -47,13 +46,13 @@ internal object MistViews {
         this.text = text
         textSize = 16f
         setLineSpacing(0f, 1.25f)
-        setTextColor(activity.getColor(R.color.mist_dialog_body))
+        setTextColor(AppTheme.palette.body)
         val pad = activity.dp(20)
         setPadding(pad, pad, pad, pad)
         background = GradientDrawable().apply {
             cornerRadius = activity.dp(24).toFloat()
-            setColor(activity.getColor(R.color.mist_dialog_surface))
-            setStroke(activity.dp(1), activity.getColor(R.color.mist_dialog_outline))
+            setColor(AppTheme.palette.surface)
+            setStroke(activity.dp(1), AppTheme.palette.line)
         }
         layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
             .apply { bottomMargin = activity.dp(20) }
@@ -69,12 +68,13 @@ internal object MistViews {
             gravity = Gravity.CENTER
             minHeight = activity.dp(56)
             stateListAnimator = null
-            val ink = activity.getColor(if (primary) R.color.mist_on_primary else R.color.mist_dialog_action)
+            val palette = AppTheme.palette
+            val ink = if (primary) palette.onPrimary else palette.action
             setTextColor(ink)
             background = GradientDrawable().apply {
                 cornerRadius = activity.dp(28).toFloat()
-                if (primary) setColor(activity.getColor(R.color.mist_primary))
-                else { setColor(0); setStroke(activity.dp(1), activity.getColor(R.color.mist_dialog_outline)) }
+                if (primary) setColor(palette.primary)
+                else { setColor(0); setStroke(activity.dp(1), palette.line) }
             }
             backgroundTintList = null
             foreground = android.graphics.drawable.RippleDrawable(ColorStateList.valueOf(ink and 0x33FFFFFF), null,

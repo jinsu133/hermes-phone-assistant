@@ -459,4 +459,7 @@
     <string name="ws_reset_defaults">既定に戻す</string>
     <string name="ws_same_phrase">呼び出し語と停止語は別の言葉にしてください。</string>
     <string name="stt_locale">ja-JP</string>
+    <string name="picker_model_follows">モデル: Hermes の既定プロファイルに従う（%1$s / %2$s）</string>
+    <string name="picker_saved_effort">保存済みの推論強度: %1$s</string>
+    <string name="rt_pick_follows_default">モデルは Hermes の既定プロファイルに従うため、ここでは変更できません。</string>
 </resources>

@@ -13,9 +13,16 @@ class ModelPickerContractTest {
             ModelPickerProvider("missing", emptyList(), "not_ready", listOf(ModelPickerModel("m", true, null)))),
         listOf("none", "minimal", "low", "medium", "high", "xhigh", "max", "ultra"), selected)
 
+    private val followsDefault = ModelPickerSelection(null, null, "high")
+
     @Test fun exactCommandContainsOnlySelectionAndRevision() {
-        assertEquals("/phone-execution select 7 '{\"provider\":\"Provider\",\"model\":\"Exact/Model\",\"reasoning_effort\":\"high\"}'",
-            ModelPickerContract.operatorCommand(snapshot(), selected))
+        assertEquals("/phone-execution select 7 '{\"provider\":null,\"model\":null,\"reasoning_effort\":\"high\"}'",
+            ModelPickerContract.operatorCommand(snapshot(), followsDefault))
+    }
+    @Test fun explicitModelIsRefusedBecauseTheDefaultProfileDecides() {
+        assertNotNull(ModelPickerContract.validationError(snapshot(), selected))
+        try { ModelPickerContract.operatorCommand(snapshot(), selected); fail("explicit model accepted") }
+        catch (_: IllegalArgumentException) { }
     }
     @Test fun inheritedNullAndNoneStayDifferent() {
         val inherited = ModelPickerSelection(null, null, null)
@@ -26,7 +33,7 @@ class ModelPickerContractTest {
     }
     @Test fun allAcceptedEffortsPreservedWithoutClamp() {
         for (effort in snapshot().efforts)
-            assertTrue(ModelPickerContract.operatorCommand(snapshot(), selected.copy(effort=effort))
+            assertTrue(ModelPickerContract.operatorCommand(snapshot(), followsDefault.copy(effort=effort))
                 .contains("\"reasoning_effort\":\"$effort\""))
     }
     @Test fun invalidIdentifiersNeverNormalized() {
@@ -53,7 +60,7 @@ class ModelPickerContractTest {
     }
     @Test fun revisionIsExactLongNotFloat() {
         val s = snapshot().copy(revision=Long.MAX_VALUE)
-        assertTrue(ModelPickerContract.operatorCommand(s, selected).contains(Long.MAX_VALUE.toString()))
+        assertTrue(ModelPickerContract.operatorCommand(s, followsDefault).contains(Long.MAX_VALUE.toString()))
     }
     @Test fun stockAliasMetadataAndWritableIdentifiersAreSeparate() {
         for (alias in listOf("my proxy", "My Proxy", "my  proxy", "my proxy ")) {

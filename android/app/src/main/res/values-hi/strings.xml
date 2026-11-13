@@ -459,4 +459,7 @@
     <string name="ws_reset_defaults">डिफ़ॉल्ट पर रीसेट करें</string>
     <string name="ws_same_phrase">वेक और स्टॉप शब्द अलग होने चाहिए।</string>
     <string name="stt_locale">hi-IN</string>
+    <string name="picker_model_follows">मॉडल: Hermes की डिफ़ॉल्ट प्रोफ़ाइल के अनुसार (%1$s / %2$s)</string>
+    <string name="picker_saved_effort">सेव किया गया रीज़निंग स्तर: %1$s</string>
+    <string name="rt_pick_follows_default">मॉडल Hermes की डिफ़ॉल्ट प्रोफ़ाइल के अनुसार चलता है और यहाँ बदला नहीं जा सकता।</string>
 </resources>

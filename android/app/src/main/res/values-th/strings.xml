@@ -459,4 +459,7 @@
     <string name="ws_reset_defaults">คืนค่าเริ่มต้น</string>
     <string name="ws_same_phrase">คำเรียกและคำหยุดต้องไม่เหมือนกัน</string>
     <string name="stt_locale">th-TH</string>
+    <string name="picker_model_follows">โมเดล: ตามโปรไฟล์เริ่มต้นของ Hermes (%1$s / %2$s)</string>
+    <string name="picker_saved_effort">ระดับการให้เหตุผลที่บันทึกไว้: %1$s</string>
+    <string name="rt_pick_follows_default">โมเดลเป็นไปตามโปรไฟล์เริ่มต้นของ Hermes และเปลี่ยนที่นี่ไม่ได้</string>
 </resources>

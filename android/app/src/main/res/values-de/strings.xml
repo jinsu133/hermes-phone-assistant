@@ -459,4 +459,7 @@
     <string name="ws_reset_defaults">Auf Standard zurücksetzen</string>
     <string name="ws_same_phrase">Aktivierungs- und Stoppwort müssen sich unterscheiden.</string>
     <string name="stt_locale">de-DE</string>
+    <string name="picker_model_follows">Modell: folgt dem Hermes-Standardprofil (%1$s / %2$s)</string>
+    <string name="picker_saved_effort">Gespeicherter Denkaufwand: %1$s</string>
+    <string name="rt_pick_follows_default">Das Modell folgt dem Hermes-Standardprofil und kann hier nicht geändert werden.</string>
 </resources>

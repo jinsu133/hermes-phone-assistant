@@ -34,29 +34,13 @@ fun ModelPickerCard(snapshot: ModelPickerSnapshot?, selection: ModelPickerSelect
                 val hostDefault = stringResource(R.string.picker_inherit_host)
                 Text(stringResource(R.string.picker_revisions, snapshot.revision, snapshot.liveRevision?.toString() ?: stringResource(R.string.none)))
                 Text(stringResource(if (snapshot.liveMatches) R.string.picker_live_match else R.string.picker_live_unknown))
-                Text(stringResource(R.string.picker_catalog_default, snapshot.hostProvider, snapshot.hostModel))
-                Text(stringResource(R.string.picker_saved, snapshot.selection.provider ?: inherit, snapshot.selection.model ?: inherit, snapshot.selection.effort ?: inherit))
+                // The working model always follows the Hermes default profile; only effort is selectable here.
+                Text(stringResource(R.string.picker_model_follows, snapshot.hostProvider, snapshot.hostModel),
+                    style = MaterialTheme.typography.bodyLarge)
+                Text(stringResource(R.string.picker_saved_effort, snapshot.selection.effort ?: inherit))
                 Text(stringResource(if (ModelPickerContract.savedMatches(snapshot, selection)) R.string.picker_saved_match else R.string.picker_unsaved))
-                OutlinedButton(onClick = { choosing = "provider" }, enabled = !loading, modifier = Modifier.heightIn(min = 48.dp)) {
-                    Text(stringResource(R.string.picker_provider, selection.provider ?: hostDefault))
-                }
-                OutlinedButton(onClick = { onSelection(selection.copy(provider = null, model = null)) }, enabled = !loading,
-                    modifier = Modifier.heightIn(min = 48.dp)) { Text(stringResource(R.string.picker_inherit_both)) }
                 val provider = ModelPickerContract.provider(snapshot, selection)
-                if (provider?.nonselectableAliases?.isNotEmpty() == true) {
-                    Text(stringResource(R.string.picker_aliases, provider.nonselectableAliases.joinToString(" · ")))
-                }
-                Text(stringResource(R.string.picker_auth, stringResource(when (provider?.auth) {
-                    "ready" -> R.string.picker_auth_ready
-                    "not_ready" -> R.string.picker_auth_not_ready
-                    else -> R.string.picker_unknown
-                })))
-                OutlinedButton(onClick = { choosing = "model" }, enabled = !loading, modifier = Modifier.heightIn(min = 48.dp)) {
-                    Text(stringResource(R.string.picker_model, selection.model ?: hostDefault))
-                }
-                val model = provider?.models?.singleOrNull { it.id == (selection.model ?: snapshot.hostModel) }
-                // Contract-produced availability text remains raw; do not infer capability from it.
-                Text(stringResource(R.string.picker_availability, ModelPickerContract.availabilityLabel(provider, model)))
+                val model = provider?.models?.singleOrNull { it.id == snapshot.hostModel }
                 Text(stringResource(R.string.picker_reasoning, stringResource(when (model?.reasoning) {
                     true -> R.string.picker_reasoning_yes
                     false -> R.string.picker_reasoning_no
@@ -65,7 +49,6 @@ fun ModelPickerCard(snapshot: ModelPickerSnapshot?, selection: ModelPickerSelect
                 OutlinedButton(onClick = { choosing = "effort" }, enabled = !loading, modifier = Modifier.heightIn(min = 48.dp)) {
                     Text(stringResource(R.string.picker_effort, selection.effort ?: hostDefault))
                 }
-                Text(stringResource(R.string.picker_inheritance_note))
                 Text(stringResource(R.string.picker_effort_note))
                 Text(stringResource(R.string.picker_strict_note))
                 Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).toggleable(
@@ -85,23 +68,11 @@ fun ModelPickerCard(snapshot: ModelPickerSnapshot?, selection: ModelPickerSelect
         }
     }
     if (choosing != null && snapshot != null && selection != null) {
-        val kind = choosing!!
-        val row = ModelPickerContract.provider(snapshot, selection)
-        val options: List<Pair<String?, String>> = listOf(null to stringResource(R.string.picker_inherit_host)) + when (kind) {
-            "provider" -> snapshot.providers.map { it.id to (context.getString(R.string.picker_option_provider, it.id, context.getString(when(it.auth) {
-                "ready" -> R.string.picker_option_auth_ready
-                "not_ready" -> R.string.picker_option_auth_needed
-                else -> R.string.picker_option_auth_unknown
-            })) + if (it.freeTierPending == true) context.getString(R.string.picker_option_pending) else "") }
-            "model" -> (row?.models ?: emptyList()).map { it.id to context.getString(R.string.picker_option_model, it.id, ModelPickerContract.availabilityLabel(row, it)) }
-            else -> snapshot.efforts.map { it to context.getString(R.string.picker_option_effort, it) }
-        }
+        val options: List<Pair<String?, String>> = listOf(null to stringResource(R.string.picker_inherit_host)) +
+            snapshot.efforts.map { it to context.getString(R.string.picker_option_effort, it) }
         ModelPickerChoiceDialog(options, onDismiss = { choosing = null }) { exact ->
-            onSelection(when (kind) {
-                "provider" -> selection.copy(provider = exact)
-                "model" -> selection.copy(model = exact)
-                else -> selection.copy(effort = exact)
-            }) // Keep other fields exactly; invalid combinations are visible, never silently reset.
+            // Provider/model stay null: the Hermes default profile chooses the model.
+            onSelection(selection.copy(provider = null, model = null, effort = exact))
             choosing = null
         }
     }

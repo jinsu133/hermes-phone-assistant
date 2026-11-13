@@ -459,4 +459,7 @@
     <string name="ws_reset_defaults">Reset to defaults</string>
     <string name="ws_same_phrase">Wake and stop words must be different.</string>
     <string name="stt_locale">en-US</string>
+    <string name="picker_model_follows">Model: follows the Hermes default profile (%1$s / %2$s)</string>
+    <string name="picker_saved_effort">Saved reasoning effort: %1$s</string>
+    <string name="rt_pick_follows_default">The model follows the Hermes default profile and can\'t be changed here.</string>
 </resources>

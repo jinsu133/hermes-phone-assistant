@@ -170,7 +170,8 @@ class SetupActivity : ComponentActivity() {
                     if (result == null) pickerMessage = getString(R.string.setup_picker_failed)
                     else {
                         // Preserve an unsaved draft across refresh; never replace it with the first model.
-                        if (pickerSelection == null) pickerSelection = result.selection
+                        // Model/provider are never chosen on the phone; an older saved override is not carried over.
+                        if (pickerSelection == null) pickerSelection = result.selection.copy(provider = null, model = null)
                         pickerMessage = getString(R.string.setup_picker_loaded)
                     }
                 }

@@ -459,4 +459,7 @@
     <string name="ws_reset_defaults">Khôi phục mặc định</string>
     <string name="ws_same_phrase">Từ đánh thức và từ dừng phải khác nhau.</string>
     <string name="stt_locale">vi-VN</string>
+    <string name="picker_model_follows">Mô hình: theo hồ sơ mặc định của Hermes (%1$s / %2$s)</string>
+    <string name="picker_saved_effort">Mức suy luận đã lưu: %1$s</string>
+    <string name="rt_pick_follows_default">Mô hình theo hồ sơ mặc định của Hermes và không thể đổi ở đây.</string>
 </resources>

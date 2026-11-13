@@ -459,4 +459,7 @@
     <string name="ws_reset_defaults">Rétablir les valeurs par défaut</string>
     <string name="ws_same_phrase">Les mots d’activation et d’arrêt doivent être différents.</string>
     <string name="stt_locale">fr-FR</string>
+    <string name="picker_model_follows">Modèle : suit le profil par défaut de Hermes (%1$s / %2$s)</string>
+    <string name="picker_saved_effort">Effort de raisonnement enregistré : %1$s</string>
+    <string name="rt_pick_follows_default">Le modèle suit le profil par défaut de Hermes et ne peut pas être modifié ici.</string>
 </resources>

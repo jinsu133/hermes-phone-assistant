@@ -101,16 +101,15 @@ def normalize_catalog(catalog):
             'auth_readiness': 'ready' if auth is True else 'not_ready' if auth is False else 'unknown',
             'models': entries})
     return {'providers': providers, 'host_provider': catalog['provider'], 'host_model': catalog['model'],
-            'request_efforts': list(REQUEST_EFFORTS), 'model_effort_support_known': False,
+            'request_efforts': list(REQUEST_EFFORTS), 'model_source': 'hermes_default_profile', 'model_effort_support_known': False,
             'strict_physical_route': False, 'selection_semantics': 'request_preferences'}
 
 
 def validate_selection(value, catalog):
-    """Validate exact preferences, not immutable route or effective reasoning promises.
+    """Validate the request preference. The model is never chosen here.
 
-    Provider/model must both be explicit or both inherited. Effort independently
-    inherits with None. Partial routes cannot be verified from a global catalog
-    against an existing session, so reject them instead of guessing its defaults.
+    Provider and model must both be None: voice runs always use the Hermes default
+    profile's model. Effort independently inherits with None.
     """
     if type(value) is not dict or set(value) != SELECTION_KEYS:
         _fail('EXECUTION_SELECTION_INVALID')
@@ -120,34 +119,13 @@ def validate_selection(value, catalog):
     effort = value['reasoning_effort']
     if effort is not None and (type(effort) is not str or effort not in REQUEST_EFFORTS):
         _fail('EXECUTION_EFFORT_INVALID')
-    clean = normalize_catalog(catalog)
+    normalize_catalog(catalog)
     # A run's inherited route can come from its SESSION, not the catalog's global
     # default. Never treat that display default as proof of the effective route.
     if value['provider'] is None and value['model'] is None:
         return deepcopy(value)
-    if value['provider'] is None or value['model'] is None:
-        _fail('EXECUTION_PARTIAL_ROUTE_UNSUPPORTED')
-    provider, model = value['provider'], value['model']
-    rows = [r for r in clean['providers'] if provider == r['id'] or provider in r['aliases']]
-    if len(rows) != 1:
-        _fail('EXECUTION_PROVIDER_UNAVAILABLE')
-    row = rows[0]
-    if row['auth_readiness'] != 'ready':
-        _fail('EXECUTION_PROVIDER_NOT_READY')
-    matches = [m for m in row['models'] if m['id'] == model]
-    if len(matches) != 1:
-        _fail('EXECUTION_MODEL_UNAVAILABLE')
-    cap = matches[0]
-    if cap['unavailable'] is True:
-        _fail('EXECUTION_MODEL_UNAVAILABLE')
-    if row['free_tier_pending'] is True:
-        _fail('EXECUTION_ENTITLEMENT_PENDING')
-    if effort is not None and (cap['reasoning_hint'] is False
-                              or (effort == 'none' and cap['can_disable_reasoning'] is False)):
-        _fail('EXECUTION_EFFORT_UNSUPPORTED')
-    # Unknown level support remains UNKNOWN. This stores only the exact request
-    # preference; no local fallback, alias rewriting, lowercasing or effort clamp.
-    return deepcopy(value)
+    # The working model follows the Hermes default profile; only reasoning effort is selectable.
+    _fail('EXECUTION_MODEL_FOLLOWS_DEFAULT_PROFILE')
 
 
 def prepare_selection(settings, parts):
@@ -165,8 +143,9 @@ def prepare_selection(settings, parts):
     if settings.current() != snapshot:
         _fail('SETTINGS_CONFLICT')
     payload = deepcopy(snapshot['payload'])
-    payload['model'] = clean['model']
-    payload['provider'] = clean['provider']
+    # Also clears any override saved by an older version.
+    payload['model'] = None
+    payload['provider'] = None
     payload['model_options'] = ({} if clean['reasoning_effort'] is None
                                 else {'reasoning_effort': clean['reasoning_effort']})
     return {'revision': snapshot['revision'], 'payload': validate_execution(payload)}
@@ -196,6 +175,7 @@ def picker_snapshot(settings, link):
     payload = snapshot['payload']
     return {'ok': True, 'schema_version': 2, **normalized, **binding,
             'revision': snapshot['revision'], 'mode': payload['mode'],
-            'selection': {'provider': payload['provider'], 'model': payload['model'],
+            'model_source': 'hermes_default_profile',
+            'selection': {'provider': None, 'model': None,
                           'reasoning_effort': payload['model_options'].get('reasoning_effort')},
             'operator_command': 'phone-execution', 'operator_action': 'select'}

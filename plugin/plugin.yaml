@@ -3,7 +3,7 @@ version: "0.19.0"
 description: "Voice-driven control of a paired Android phone through Hermes: spoken requests run through the existing conversation, permitted accessibility actions are executed and re-observed, and the verified result is spoken back. Android/Termux companion app required; same-device loopback transport only."
 author: ko_spell
 kind: standalone
-requires_hermes: ">=0.21"
+requires_hermes: ">=0.21.4"
 platforms:
   - linux
 provides_tools:

@@ -459,4 +459,7 @@
     <string name="ws_reset_defaults">Restablecer valores predeterminados</string>
     <string name="ws_same_phrase">Las palabras de activación y parada deben ser distintas.</string>
     <string name="stt_locale">es-ES</string>
+    <string name="picker_model_follows">Modelo: sigue el perfil predeterminado de Hermes (%1$s / %2$s)</string>
+    <string name="picker_saved_effort">Esfuerzo de razonamiento guardado: %1$s</string>
+    <string name="rt_pick_follows_default">El modelo sigue el perfil predeterminado de Hermes y no se puede cambiar aquí.</string>
 </resources>

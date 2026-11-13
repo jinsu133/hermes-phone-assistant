@@ -459,4 +459,7 @@
     <string name="ws_reset_defaults">Kembalikan ke default</string>
     <string name="ws_same_phrase">Kata pemanggil dan penghenti harus berbeda.</string>
     <string name="stt_locale">id-ID</string>
+    <string name="picker_model_follows">Model: mengikuti profil default Hermes (%1$s / %2$s)</string>
+    <string name="picker_saved_effort">Tingkat penalaran tersimpan: %1$s</string>
+    <string name="rt_pick_follows_default">Model mengikuti profil default Hermes dan tidak dapat diubah di sini.</string>
 </resources>

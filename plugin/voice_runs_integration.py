@@ -11,6 +11,9 @@ import re
 from .voice_runs_owner import RunsOwner, RunOwnerError, FINISHED
 
 
+
+MODEL_SOURCE = 'hermes_default_profile'
+
 class RunsBinding:
     def __init__(self, link, snapshot, client, *, poll_seconds=.3, deadline_seconds=600):
         self.link = link
@@ -31,7 +34,10 @@ class RunsBinding:
             'ok': not self.owner.blocked(),
             'error': 'RUNS_PREVIOUS_UNRESOLVED' if self.owner.blocked() else None,
             'revision': self.snapshot['revision'], 'editable': True,
-            'route': {k: deepcopy(self.config[k]) for k in ('model','provider','model_options')},
+            # The working model always follows the Hermes default profile: no model/provider is sent.
+            'route': {'model': None, 'provider': None,
+                      'model_options': deepcopy(self.config['model_options'])},
+            'model_source': MODEL_SOURCE,
             'contract': 'hermes-runs-v1', 'settings_cas_scope': 'plugin',
             'strict_physical_route': False}
 
@@ -44,7 +50,9 @@ class RunsBinding:
         self._busy_marker = None
         return self.owner.begin(request_id=pending['request_id'],
             session_generation=self.link._session_generation, session_id=self.session_id,
-            input_text=text, model=self.config['model'], provider=self.config['provider'],
+            # Never send model/provider: the API server then uses its global route, which is the
+            # Hermes default profile's model. Older saved overrides are ignored, not applied.
+            input_text=text, model=None, provider=None,
             model_options=deepcopy(self.config['model_options']))
 
     def note_turn(self, user_message, session_id, marker):

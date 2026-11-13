@@ -114,11 +114,9 @@ internal fun HomeScreen(state: CompanionUiState, diagnostics: String,
 @Composable
 private fun HomeHeader() {
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-        Image(painterResource(R.drawable.nous_girl_icon_fg), contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.size(56.dp).clip(CircleShape)
-                .background(Color(0xFFFDECD9))
-                .border(1.5.dp, Color(0xFFC4A062), CircleShape))
+        // Transparent portrait; the night variant carries a brass outline so black hair reads on dark.
+        Image(painterResource(R.drawable.nous_girl_portrait), contentDescription = null,
+            contentScale = ContentScale.Fit, modifier = Modifier.size(64.dp))
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
             Text("Hermes", style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.primary,
                 letterSpacing = 1.5.sp)

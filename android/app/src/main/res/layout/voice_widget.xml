@@ -15,10 +15,8 @@
         <ImageView
             android:layout_width="40dp"
             android:layout_height="40dp"
-            android:padding="2dp"
-            android:background="@drawable/widget_icon_circle"
-            android:src="@drawable/nous_girl_icon_fg"
-            android:scaleType="centerCrop"
+            android:src="@drawable/nous_girl_portrait"
+            android:scaleType="fitCenter"
             android:importantForAccessibility="no" />
 
         <LinearLayout

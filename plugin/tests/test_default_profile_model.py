@@ -4,7 +4,13 @@ import sys
 import unittest
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+import types
+_PLUGIN_DIR = Path(__file__).resolve().parents[1]
+# Load the plugin as package "plugin" whatever its installed folder is called.
+if 'plugin' not in sys.modules:
+    _pkg = types.ModuleType('plugin')
+    _pkg.__path__ = [str(_PLUGIN_DIR)]
+    sys.modules['plugin'] = _pkg
 picker = importlib.import_module('plugin.voice_model_picker')
 runs = importlib.import_module('plugin.voice_runs_integration')
 

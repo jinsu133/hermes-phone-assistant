@@ -28,6 +28,12 @@ public class PhoneActionPolicyTest {
   assertEquals(PhoneActionPolicy.Decision.DENY,d("input_text","send_button","보내기",true,"general"));
   assertEquals(PhoneActionPolicy.Decision.DENY,d("click","search_button","검색",true,"payment"));
  }
+ @Test public void dialogCloseIsNotACallControl() {
+  assertEquals(PhoneActionPolicy.Decision.REVIEW,
+   PhoneActionPolicy.decide("click","com.skt.tmap.ku","com.skt.tmap.ku:id/notice_dialog_close","android.widget.TextView","닫기",false,false,false,false,false,""));
+  assertEquals(PhoneActionPolicy.Decision.DENY,d("click","dial_pad","",false,""));
+  assertEquals(PhoneActionPolicy.Decision.DENY,d("click","dialog_send","",false,""));
+ }
  @Test public void protectedOrOpaqueNodesNeverGainScope() {
   for(int i=0;i<4;i++) assertEquals(PhoneActionPolicy.Decision.DENY,
    PhoneActionPolicy.decide("click","com.kakao.talk","com.kakao.talk:id/send_button","android.widget.Button","보내기",

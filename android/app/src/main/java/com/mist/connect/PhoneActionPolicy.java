@@ -13,7 +13,8 @@ public final class PhoneActionPolicy {
     private static final Set<String> DIALERS=Set.of("com.android.dialer","com.google.android.dialer","com.samsung.android.dialer");
     private static final Set<String> NODE=Set.of("click","input_text","submit_search","scroll_forward","scroll_backward");
     private static final Pattern DIRECT=Pattern.compile("송금|이체|매수|매도|transfer|trade|permission|grant|권한|보안|인증|비밀번호|password|otp|pin_code|login|로그인|동의|agree|delete|삭제",Pattern.CASE_INSENSITIVE);
-    private static final Pattern RISK=Pattern.compile("결제|구매|주문|예약|전송|보내|전화|통화|구독|pay|buy|purchase|checkout|subscribe|send|call|dial",Pattern.CASE_INSENSITIVE);
+    // "dial" is a call control, but "dialog" (notice_dialog_close) is only a container name.
+    private static final Pattern RISK=Pattern.compile("결제|구매|주문|예약|전송|보내|전화|통화|구독|pay|buy|purchase|checkout|subscribe|send|call|dial(?!og)",Pattern.CASE_INSENSITIVE);
     private static final Pattern MESSAGE_ID=Pattern.compile("send|send_button|button_send|btn_send|send_message|sendmessage|message_send|send_btn");
     private static final Pattern CALL_ID=Pattern.compile("call|call_button|button_call|btn_call|dial|dial_button|dialpad_floating_action_button");
     private static final Pattern PAYMENT_ID=Pattern.compile("pay|pay_button|button_pay|btn_pay|purchase|purchase_button|checkout|checkout_button|confirm_payment");

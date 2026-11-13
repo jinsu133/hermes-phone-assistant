@@ -249,7 +249,8 @@ class McpService : Service() {
                         }
                         else -> error("Unsupported tool")
                     }
-                } catch (error: Exception) { failed = true; JSONObject().put("error","Tool denied or unavailable").put("code",VoiceConfirmationPolicy.errorCode(error.message)) }
+                } catch (error: Exception) { failed = true; JSONObject().put("error","Tool denied or unavailable").put("code",VoiceConfirmationPolicy.errorCode(error.message))
+                    .apply { VoiceConfirmationPolicy.missingField(error.message).takeIf { it.isNotEmpty() }?.let { put("missing",it) } } }
                 JSONObject().put("isError",failed).put("content",JSONArray().put(JSONObject().put("type","text").put("text",value.toString())))
             }
             else -> error("Unsupported method")

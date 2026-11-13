@@ -7,6 +7,7 @@ session_key is fixed by operator configuration; the bridge never creates a secon
 """
 from __future__ import annotations
 
+from datetime import datetime
 import hashlib
 import hmac
 import json
@@ -891,7 +892,10 @@ class VoiceLink:
             while len(self._voice_turns) > 64:
                 self._voice_turns.pop(next(iter(self._voice_turns)))
         root=workspace(self._home, pending["request_id"]) if self._home else None
+        # Voice turns may not run shell commands, so the clock is given, not looked up.
+        now = datetime.now().astimezone().strftime("%Y-%m-%d (%a) %H:%M %Z")
         context = (_messages.text(self.ctx, "voice.hook")
+                   + _messages.text(self.ctx, "voice.now", now=now)
                    + _messages.text(self.ctx, "voice.progress"))
         if root:
             context += _messages.text(self.ctx, "voice.documents", root=root)

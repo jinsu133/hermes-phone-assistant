@@ -20,6 +20,15 @@ public final class VoiceConfirmationPolicy {
         return java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFC).trim()
             .replaceAll("[.!?。！？।]+$", "").replaceAll("\\s+", "").toLowerCase(java.util.Locale.ROOT);
     }
+    /** Which confirmation field was absent from the screen, so the caller can fix that one field. */
+    public static String missingField(String message) {
+        if (message == null) return "";
+        if (message.equals("complete_message_body_required")) return "content";
+        String prefix = "confirmation_details_missing_or_not_on_screen:";
+        if (!message.startsWith(prefix)) return "";
+        String key = message.substring(prefix.length());
+        return java.util.Set.of("recipient","content","merchant","amount","method").contains(key) ? key : "";
+    }
     public static String errorCode(String message) {
         if (message == null) return "ACTION_DENIED_OR_STALE_SCREEN";
         if (message.startsWith("confirmation_details_missing") || message.equals("complete_message_body_required")) return "CONFIRMATION_DETAILS_REQUIRED";

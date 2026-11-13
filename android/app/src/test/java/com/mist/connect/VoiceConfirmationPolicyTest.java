@@ -21,6 +21,13 @@ public class VoiceConfirmationPolicyTest {
   assertEquals("SCREEN_LIMIT_EXCEEDED",VoiceConfirmationPolicy.errorCode("screen_too_large_for_confirmation"));
   assertEquals("ACTION_DENIED_OR_STALE_SCREEN",VoiceConfirmationPolicy.errorCode("private raw content"));
  }
+ @Test public void missingConfirmationFieldIsNamedButNothingElse() {
+  assertEquals("recipient",VoiceConfirmationPolicy.missingField("confirmation_details_missing_or_not_on_screen:recipient"));
+  assertEquals("content",VoiceConfirmationPolicy.missingField("complete_message_body_required"));
+  assertEquals("",VoiceConfirmationPolicy.missingField("confirmation_details_missing_or_not_on_screen:secret text"));
+  assertEquals("",VoiceConfirmationPolicy.missingField("stale_snapshot"));
+  assertEquals("",VoiceConfirmationPolicy.missingField(null));
+ }
  @Test public void structuralSearchAcrossPackages() {
   for(String pkg:new String[]{"com.example.notes","org.example.catalog","com.android.chrome"}) {
    assertTrue(ActionRiskPolicy.nativeSearch("input_text",pkg+":id/search_src_text","android.widget.EditText","검색",true,false,"환경측정"));

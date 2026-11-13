@@ -67,6 +67,7 @@ EN: dict[str, str] = {
         "the original request. Answer and stop as soon as the request is satisfied. A 'home screen' "
         "request is done once the launcher is visible; do not browse other home pages. Keep answers short "
         "for speech and never claim an unverified success."),
+    "voice.now": " Current local time on this phone: {now}. Answer time and date questions from this; no tool is needed.",
     "voice.progress": (
         " Progress notes: when a lookup produced a useful result and work remains, use voice_progress to "
         "state, one sentence each, what you confirmed (finding), a short public reason (basis) and the next "
@@ -164,6 +165,7 @@ KO: dict[str, str] = {
         "결과가 오면 최신 화면을 읽고 원래 요청의 다음 단계를 계속하세요. "
         "요청이 충족되면 즉시 답하고 끝내세요. 홈 화면 요청은 런처가 보이면 완료이며 다른 홈 페이지를 추가 탐색하지 마세요. "
         "응답은 음성에 맞춰 간결하게 하되 확인하지 않은 성공을 주장하지 마세요."),
+    "voice.now": " 이 폰의 현재 현지 시각: {now}. 시간·날짜 질문은 이 값으로 답하세요. 도구가 필요 없습니다.",
     "voice.progress": (
         " 중간 안내: 유용한 조회 결과를 얻었고 다음 작업이 남았다면 voice_progress로 "
         "확인한 내용(finding), 공개할 수 있는 짧은 판단 근거(basis), 다음 작업(next_step)을 "

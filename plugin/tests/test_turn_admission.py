@@ -97,6 +97,14 @@ class VoiceTurns(unittest.TestCase):
         self.assertEqual(target._admission_owner(("s", "t")), ("record", "req-1"))
         self.assertEqual(target.voice_request("s", "t"), "req-1")
 
+    def test_voice_turn_is_told_the_local_time(self):
+        # Voice turns cannot run shell commands, so "what time is it" needs the clock given.
+        target = link()
+        text = target.format_voice_message("what time is it") + "\n[phone_request_id=req-1]"
+        pend(target, text)
+        context = target.prepare_voice_turn(session_id="s", turn_id="t", user_message=text)
+        self.assertRegex(context, r"\d{4}-\d{2}-\d{2} \(\w+\) \d{2}:\d{2}")
+
     def test_same_request_cannot_be_rebound_to_another_turn(self):
         target = link()
         text = target.format_voice_message("call mom") + "\n[phone_request_id=req-1]"

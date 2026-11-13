@@ -152,7 +152,11 @@ async def query_control(operation, args, filename):
             raise Denied("CODE_EXECUTION_BACKEND_REQUIRED")
         result = await client.rpc("tools/call", {"name":methods[operation], "arguments":args})
         if result.get("isError") is not False:
-            error = parse_json(result["content"][0]["text"]).get("code")
+            body = parse_json(result["content"][0]["text"])
+            error = body.get("code")
+            # Name the one confirmation field that is not on screen, so the model fixes only that.
+            if error == "CONFIRMATION_DETAILS_REQUIRED" and body.get("missing") in {"recipient","content","merchant","amount","method"}:
+                raise Denied(f"CONFIRMATION_DETAILS_REQUIRED:{body['missing']}")
             allowed = {"SNAPSHOT_EXPIRED", "TARGET_CHANGED", "FOREGROUND_CHANGED", "PROTECTED_INPUT",
                        "SCREEN_LIMIT_EXCEEDED", "SCREEN_UNAVAILABLE", "APPROVAL_PENDING",
                        "CONFIRMATION_DETAILS_REQUIRED", "CONTROL_STOPPED", "UNSUPPORTED_UI",

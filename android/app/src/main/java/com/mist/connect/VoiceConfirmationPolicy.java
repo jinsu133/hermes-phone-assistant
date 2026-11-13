@@ -5,15 +5,20 @@ public final class VoiceConfirmationPolicy {
     private VoiceConfirmationPolicy() {}
     public static String phrase(String kind) {
         switch (kind) {
-            case "message": return "이 메시지 보내기 허용";
-            case "call": return "이 전화 걸기 허용";
-            case "payment": return "이 구매 허용";
-            default: return "이 작업 실행 허용";
+            case "message": return ConfirmationPolicy.t(R.string.vp_message, "이 메시지 보내기 허용");
+            case "call": return ConfirmationPolicy.t(R.string.vp_call, "이 전화 걸기 허용");
+            case "payment": return ConfirmationPolicy.t(R.string.vp_payment, "이 구매 허용");
+            default: return ConfirmationPolicy.t(R.string.vp_general, "이 작업 실행 허용");
         }
     }
     public static boolean matches(String expected, String heard) {
         if (expected == null || heard == null || expected.isEmpty()) return false;
-        return expected.replaceAll("\\s+", "").equals(heard.trim().replaceAll("[.!?。！？]+$", "").replaceAll("\\s+", ""));
+        return normalize(expected).equals(normalize(heard));
+    }
+    /** Whitespace, letter case and sentence-final punctuation only; added or missing words never match. */
+    static String normalize(String text) {
+        return java.text.Normalizer.normalize(text, java.text.Normalizer.Form.NFC).trim()
+            .replaceAll("[.!?。！？।]+$", "").replaceAll("\\s+", "").toLowerCase(java.util.Locale.ROOT);
     }
     public static String errorCode(String message) {
         if (message == null) return "ACTION_DENIED_OR_STALE_SCREEN";

@@ -28,21 +28,45 @@ public final class ConfirmationPolicy {
             throw new IllegalArgumentException("confirmation_details_missing_or_not_on_screen:"+key);
         return s;
     }
-    public static String prompt(String op,String target,String screen,Map<String,String> d,String input) {
+    static String t(int id, String ko, Object... args) {
+        return AppText.INSTANCE.get(id, args.length == 0 ? ko : String.format(java.util.Locale.ROOT, ko, args), args);
+    }
+    public static String body(String op,String target,String screen,Map<String,String> d,String input) {
         String kind=d.getOrDefault("kind", "general");
-        String message;
         if (kind.equals("payment") || (op.equals("click") && MONEY.matcher(target).find())) {
             String merchant=field(d,"merchant",screen), amount=field(d,"amount",screen), method=field(d,"method",screen);
-            message="결제 관련 작업을 실행하려고 합니다.\n대상: "+merchant+"\n최종 금액: "+amount+"\n결제 수단: "+method+"\n이 내용으로 진행할까요?\n이전 작업 승인은 결제 승인으로 사용하지 않습니다.";
+            return t(R.string.cf_payment,"결제 관련 작업을 실행하려고 합니다.\n대상: %1$s\n최종 금액: %2$s\n결제 수단: %3$s\n이 내용으로 진행할까요?\n이전 작업 승인은 결제 승인으로 사용하지 않습니다.",merchant,amount,method);
         } else if (kind.equals("message") || (op.equals("click") && SEND.matcher(target).find())) {
-            message=field(d,"recipient",screen)+"에게 문자/카카오톡 메시지를 보내려고 합니다.\n내용:\n"+field(d,"content",screen)+"\n이 내용으로 정말 보낼까요?";
+            String recipient=field(d,"recipient",screen), content=field(d,"content",screen);
+            return t(R.string.cf_message,"%1$s에게 문자/카카오톡 메시지를 보내려고 합니다.\n내용:\n%2$s\n이 내용으로 정말 보낼까요?",recipient,content);
         } else if (kind.equals("call") || (op.equals("click") && CALL.matcher(target).find())) {
-            message=field(d,"recipient",screen)+"에게 전화 걸까요?";
-        } else {
-            String action=Map.of("home","홈 화면으로 이동","back","뒤로 이동","recents","최근 앱 목록 열기","notifications","알림창 열기","click","누르기","input_text","글자 입력","scroll_forward","아래로 스크롤","scroll_backward","위로 스크롤").getOrDefault(op,op);
-            message="휴대폰에서 다음 작업을 실행할까요?\n동작: "+action+"\n대상: "+target;
-            if(op.equals("input_text")) message+="\n입력할 내용:\n"+input;
+            return t(R.string.cf_call,"%1$s에게 전화 걸까요?",field(d,"recipient",screen));
         }
-        return message+"\n\n이번 작업 한 번만 승인됩니다. 화면/내용 변경, 잠금, 중지, 취소 또는 2분 경과 시 실행하지 않습니다.";
+        String message=t(R.string.cf_general,"휴대폰에서 다음 작업을 실행할까요?\n동작: %1$s\n대상: %2$s",opLabel(op),target);
+        if(op.equals("input_text")) message+="\n"+t(R.string.cf_input,"입력할 내용:\n%1$s",input);
+        return message;
+    }
+    static String opLabel(String op) {
+        switch (op) {
+            case "home": return t(R.string.cf_op_home,"홈 화면으로 이동");
+            case "back": return t(R.string.cf_op_back,"뒤로 이동");
+            case "recents": return t(R.string.cf_op_recents,"최근 앱 목록 열기");
+            case "notifications": return t(R.string.cf_op_notifications,"알림창 열기");
+            case "click": return t(R.string.cf_op_click,"누르기");
+            case "input_text": return t(R.string.cf_op_input_text,"글자 입력");
+            case "scroll_forward": return t(R.string.cf_op_scroll_forward,"아래로 스크롤");
+            case "scroll_backward": return t(R.string.cf_op_scroll_backward,"위로 스크롤");
+            default: return op;
+        }
+    }
+    public static String onceNotice() {
+        return t(R.string.cf_once,"이번 작업 한 번만 승인됩니다. 화면/내용 변경, 잠금, 중지, 취소 또는 2분 경과 시 실행하지 않습니다.");
+    }
+    public static String screenHeader() { return t(R.string.cf_screen_header,"기기 화면 원문:"); }
+    public static String sayPhrase(String phrase) {
+        return t(R.string.cf_say_phrase,"허용하려면 ‘%1$s’이라고 말씀해 주세요. 다른 응답이나 무응답에는 실행하지 않습니다.",phrase);
+    }
+    public static String prompt(String op,String target,String screen,Map<String,String> d,String input) {
+        return body(op,target,screen,d,input)+"\n\n"+onceNotice();
     }
 }

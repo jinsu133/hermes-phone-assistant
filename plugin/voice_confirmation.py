@@ -13,8 +13,9 @@ import unicodedata
 
 
 def normalize(text):
-    # Only whitespace and sentence-final punctuation vary; negation/additions never pass.
-    return re.sub(r"\s+", "", unicodedata.normalize("NFC", str(text)).strip().rstrip(".!?。！？"))
+    # Only whitespace, letter case and sentence-final punctuation vary; negation/additions never pass.
+    # The phrase comes from the app in the user's language, so case and the Devanagari full stop count too.
+    return re.sub(r"\s+", "", unicodedata.normalize("NFC", str(text)).strip().rstrip(".!?。！？।")).casefold()
 
 
 class VoiceConfirmation:

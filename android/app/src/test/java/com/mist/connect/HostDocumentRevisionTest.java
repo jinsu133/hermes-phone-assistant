@@ -13,7 +13,7 @@ public class HostDocumentRevisionTest {
         assertTrue(d.prompt().contains("기존 내용: 오전 9시"));
         assertTrue(d.prompt().contains("수정 내용: 오전 10시"));
         assertTrue(d.prompt().contains("원본은 그대로"));
-        assertTrue(d.prompt().contains(HostDocumentRevision.PHRASE));
+        assertTrue(d.prompt().contains(HostDocumentRevision.phrase()));
     }
     @Test public void changedReplacementCannotReuseDigest() {
         assertThrows(IllegalArgumentException.class,()->revision("오후 2시",DIGEST));

@@ -7,7 +7,7 @@ public class HostCodeExecutionTest {
     @Test public void independentPythonDigestAndCompletePreview() {
         HostCodeExecution p=new HostCodeExecution("owner","test.py","print(1)",SOURCE,ACTION);
         assertEquals(ACTION,p.digest);assertTrue(p.prompt().contains("print(1)"));
-        assertTrue(p.prompt().contains(HostCodeExecution.PHRASE));
+        assertTrue(p.prompt().contains(HostCodeExecution.phrase()));
         assertTrue(p.prompt().contains("파일 접근, 인터넷 연결"));
     }
     @Test public void sourceNameOwnerAndDigestCannotChange() {

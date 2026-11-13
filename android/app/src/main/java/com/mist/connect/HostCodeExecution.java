@@ -4,7 +4,7 @@ import java.security.MessageDigest;
 
 /** Fixed no-file/no-network compute consent. Never carries approval flags. */
 public final class HostCodeExecution {
-    public static final String PHRASE="이 코드 격리 실행 허용";
+    public static String phrase() { return ConfirmationPolicy.t(R.string.vp_code, "이 코드 격리 실행 허용"); }
     public final String request,name,source,digest;
     private static String sha(String text) {
         try {
@@ -27,8 +27,7 @@ public final class HostCodeExecution {
         if(!digest.equals(actionDigest))throw new IllegalArgumentException("code_digest_mismatch");
     }
     public String prompt() {
-        return "코드 " + name + "을 별도 계산 프로세스에서 실행하려고 합니다. 파일 접근, 인터넷 연결, 다른 프로그램 실행은 차단됩니다. " +
-            "실행할 코드 원문은 다음과 같습니다.\n" + source +
-            "\n이 코드만 실행하려면 ‘" + PHRASE + "’이라고 말씀해 주세요.";
+        return ConfirmationPolicy.t(R.string.cf_code, "코드 %1$s을 별도 계산 프로세스에서 실행하려고 합니다. 파일 접근, 인터넷 연결, 다른 프로그램 실행은 차단됩니다. " +
+            "실행할 코드 원문은 다음과 같습니다.\n%2$s\n이 코드만 실행하려면 ‘%3$s’이라고 말씀해 주세요.", name, source, phrase());
     }
 }

@@ -172,7 +172,7 @@ class McpService : Service() {
             !getSystemService(KeyguardManager::class.java).isDeviceLocked &&
             VoiceRequestService.handsfreeActive && VoiceRequestService.activeRequestId == d.request
         check(valid()) { "voice_owner_required" }
-        return ActionConfirmation.request(d.prompt(),d.request,HostDocumentRevision.PHRASE,d.digest,
+        return ActionConfirmation.request(d.prompt(),d.request,HostDocumentRevision.phrase(),d.digest,
             { valid() }, { JSONObject().put("dispatched",true).put("permission_only",true)
                 .put("voice_request_id",d.request).put("authorized_digest",d.digest) })
     }
@@ -185,7 +185,7 @@ class McpService : Service() {
             !getSystemService(KeyguardManager::class.java).isDeviceLocked &&
             VoiceRequestService.handsfreeActive && VoiceRequestService.activeRequestId == d.request
         check(valid()) { "voice_owner_required" }
-        return ActionConfirmation.request(d.prompt(),d.request,HostCodeExecution.PHRASE,d.digest,
+        return ActionConfirmation.request(d.prompt(),d.request,HostCodeExecution.phrase(),d.digest,
             { valid() }, { JSONObject().put("dispatched",true).put("permission_only",true)
                 .put("voice_request_id",d.request).put("authorized_digest",d.digest) })
     }

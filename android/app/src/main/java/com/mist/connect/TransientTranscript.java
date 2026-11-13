@@ -15,7 +15,8 @@ public final class TransientTranscript {
     public synchronized void setRecording(boolean value) {recording=value;clear();}
     public synchronized void update(String value,boolean complete) {
         if(!visible || !recording || value==null || value.trim().isEmpty())return;
-        String next=(complete?"확정: ":"중간: ")+value.substring(0,Math.min(value.length(),160));
+        String shown=value.substring(0,Math.min(value.length(),160));
+        String next=complete?ConfirmationPolicy.t(R.string.tr_final,"확정: %1$s",shown):ConfirmationPolicy.t(R.string.tr_partial,"중간: %1$s",shown);
         byte[] digest;
         try {digest=java.security.MessageDigest.getInstance("SHA-256").digest(next.getBytes(java.nio.charset.StandardCharsets.UTF_8));}
         catch(java.security.NoSuchAlgorithmException e) {throw new IllegalStateException(e);}

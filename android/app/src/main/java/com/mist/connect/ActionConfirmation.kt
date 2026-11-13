@@ -69,7 +69,7 @@ internal object ActionConfirmation {
             p.gate.cancel(id); p.result=JSONObject().put("dispatched",false).put("state","expired"); visible?.finish()
         } } },ttl)
         main.postDelayed({ synchronized(this) { if(pending === p) { cancelAll(); pending=null } } },ttl+300000)
-        return status(id).put("confirmation_prompt",prompt.substringBefore("\n\n기기 화면 원문:"))
+        return status(id).put("confirmation_prompt",prompt.substringBefore("\n\n" + ConfirmationPolicy.screenHeader()))
             .put("voice_phrase",phrase).put("action_digest",digest)
             .put("instruction",if(voiceRequest.isNotEmpty()) "The app is waiting for explicit voice approval. Continue with the next step after you receive the tool result."
                 else "Ask the user to approve or cancel on the phone confirmation screen. Check the result with approval_status.")

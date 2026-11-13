@@ -707,9 +707,9 @@ internal class PhoneActions(private val service: McpService) {
             if(op=="click") check(n?.isClickable==true) { "target_not_clickable" }
             val kind=classification.name.lowercase()
             val phrase=VoiceConfirmationPolicy.phrase(kind)
-            val summary=ConfirmationPolicy.prompt(op,target,before,details.keys().asSequence().associateWith { details.getString(it) },args.optString("text"))
-            val prompt=if(voiceRequest.isNotEmpty()) summary.substringBefore("\n\n이번 작업") + "\n허용하려면 ‘$phrase’이라고 말씀해 주세요. 다른 응답이나 무응답에는 실행하지 않습니다."
-                else summary + "\n\n기기 화면 원문:\n" + screenPreview
+            val body=ConfirmationPolicy.body(op,target,before,details.keys().asSequence().associateWith { details.getString(it) },args.optString("text"))
+            val prompt=if(voiceRequest.isNotEmpty()) body + "\n" + ConfirmationPolicy.sayPhrase(phrase)
+                else body + "\n\n" + ConfirmationPolicy.onceNotice() + "\n\n" + ConfirmationPolicy.screenHeader() + "\n" + screenPreview
             val digest=java.security.MessageDigest.getInstance("SHA-256").digest((args.toString()+"\n"+before).toByteArray()).joinToString("") { "%02x".format(it) }
             val copy=JSONObject(args.toString())
             val originalPackage=a.rootInActiveWindow?.packageName?.toString()

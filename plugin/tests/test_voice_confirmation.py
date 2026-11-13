@@ -33,6 +33,13 @@ class ConfirmationTests(unittest.TestCase):
             self.b.clear(); self.b.begin('request','action','내용','이 메시지 보내기 허용','a'*64)
             self.b.claim_audio('request','action',self.arm())
             self.assertFalse(self.b.finish_audio('request','action',text)['allowed'])
+    def test_localized_phrase(self):
+        for phrase, heard, ok in [('Allow sending this message', 'allow sending this message.', True),
+                                  ('Allow sending this message', "Don't allow sending this message", False),
+                                  ('इस संदेश को भेजने की अनुमति दें', 'इस संदेश को भेजने की अनुमति दें।', True)]:
+            self.b.clear(); self.b.begin('request','action','prompt',phrase,'a'*64)
+            self.b.claim_audio('request','action',self.arm())
+            self.assertEqual(self.b.finish_audio('request','action',heard)['allowed'], ok)
     def test_expiry(self):
         nonce=self.arm(); self.now+=241
         with self.assertRaises(ValueError): self.b.claim_audio('request','action',nonce)

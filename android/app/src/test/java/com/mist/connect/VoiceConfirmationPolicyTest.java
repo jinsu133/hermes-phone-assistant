@@ -7,6 +7,12 @@ public class VoiceConfirmationPolicyTest {
   assertTrue(VoiceConfirmationPolicy.matches(p,"이 메시지 보내기 허용."));
   for(String s:new String[]{"네","좋아요","이 메시지 보내기 허용하지 마","이 메시지 보내기 허용 취소",""}) assertFalse(VoiceConfirmationPolicy.matches(p,s));
  }
+ @Test public void otherLanguagesIgnoreCaseAndFinalPunctuationOnly() {
+  assertTrue(VoiceConfirmationPolicy.matches("Allow this call","allow this call."));
+  assertTrue(VoiceConfirmationPolicy.matches("इस कॉल की अनुमति दें","इस कॉल की अनुमति दें।"));
+  assertFalse(VoiceConfirmationPolicy.matches("Allow this call","Don't allow this call"));
+  assertFalse(VoiceConfirmationPolicy.matches("Allow this call","Allow this call later"));
+ }
  @Test public void kindsDoNotShareAuthorization() {
   assertFalse(VoiceConfirmationPolicy.matches(VoiceConfirmationPolicy.phrase("payment"),VoiceConfirmationPolicy.phrase("general")));
  }

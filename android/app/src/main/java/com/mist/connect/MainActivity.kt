@@ -268,6 +268,19 @@ class MainActivity : ComponentActivity() {
     override fun onResume() {
         super.onResume()
         VoiceForegroundService.transcript.setVisible(true)
+        restorePhoneControl()
+    }
+
+    /** An app update or process restart stops the phone-control service while accessibility
+     * stays on, and home then reported accessibility as missing. Bring the service back only
+     * when the user already consented to phone control and accessibility is connected. */
+    private fun restorePhoneControl() {
+        if (McpService.instance != null || LCAccessibilityService.instance == null) return
+        if (!getSharedPreferences("handsfree", MODE_PRIVATE).getBoolean("control_consent", false)) return
+        try {
+            startForegroundService(Intent(this, McpService::class.java))
+            uiHandler.postDelayed({ refresh() }, 700)
+        } catch (_: RuntimeException) { }
     }
     override fun onPause() {
         VoiceForegroundService.transcript.setVisible(false)

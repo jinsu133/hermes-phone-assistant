@@ -39,10 +39,10 @@ class Ctx:
 @unittest.skipUnless(POSIX, 'plugin package imports fcntl (Termux/Linux)')
 class StartupTest(unittest.TestCase):
     def setUp(self):
-        self.mod = importlib.import_module('plugin')
+        self.mod = importlib.import_module('plugin.bridge_startup')
 
     def run_startup(self, link, ctx):
-        self.mod._start_bridge_after_load(ctx, link, delays=(0, 0, 0), sleep=lambda _: None)
+        self.mod.start_bridge_after_load(ctx, link, delays=(0, 0, 0), sleep=lambda _: None)
         deadline = time.time() + 2
         while time.time() < deadline and not link.listening and link.calls < 3:
             time.sleep(.01)
@@ -104,6 +104,19 @@ class RestoredRunTest(unittest.TestCase):
         self.assertTrue(owner.reconcile_restored_interrupted())
         self.assertFalse(owner.blocked())
         self.assertEqual(json.loads(self.path.read_text())['state'], 'interrupted')
+
+    def test_an_earlier_unrelated_recovery_is_archived_not_a_conflict(self):
+        os.utime(self.path, (time.time() - 60, self.owner_mod._PROCESS_STARTED - 60))
+        old_run = 'run_' + 'b' * 32
+        old = json.dumps({'version': 1, 'run_id': old_run, 'state': 'running'}).encode()
+        slot = self.path.parent / 'restored-interrupted.audit.json'
+        fd = os.open(slot, os.O_WRONLY | os.O_CREAT, 0o600)
+        with os.fdopen(fd, 'wb') as f:
+            f.write(old)
+        owner = self.owner(self.client(404))
+        self.assertTrue(owner.reconcile_restored_interrupted())
+        self.assertEqual((self.path.parent / f'restored-interrupted.{old_run}.audit.json').read_bytes(), old)
+        self.assertEqual(json.loads(slot.read_text())['run_id'], self.RUN)
 
     def test_other_errors_or_a_run_from_this_process_stay_blocked(self):
         os.utime(self.path, (time.time() - 60, self.owner_mod._PROCESS_STARTED - 60))

@@ -160,10 +160,10 @@ class RunJournal:
             return False
 
     def preserve_restored(self, record):
-        """One private audit slot: never overwrite evidence or grow without bound.
+        """One private audit slot; evidence is never overwritten.
 
-        A different or partial prior audit refuses recovery; an operator must
-        archive it explicitly before a later, unrelated recovery can proceed.
+        A different earlier recovery is first kept under its own run id (one small
+        file per recovered run). A partial or unreadable prior audit still refuses.
         """
         if self.fd is None:
             raise RunOwnerError('RUNS_STATE_CLOSED')
@@ -176,10 +176,16 @@ class RunJournal:
         except FileExistsError:
             fd = _private_fd(path, os.O_RDONLY)
             with os.fdopen(fd, 'rb') as stream:
-                if stream.read(4097) != data:
-                    raise RunOwnerError('RUNS_RECOVERY_AUDIT_CONFLICT')
-                os.fsync(stream.fileno())
-        else:
+                prior = stream.read(4097)
+                if prior == data:
+                    os.fsync(stream.fileno())
+                    fd = None
+            if fd is not None:
+                # An earlier, unrelated recovery: keep its evidence under its own run id
+                # (never replaced or unlinked), then record this one in the slot.
+                self._archive_audit(path, prior)
+                fd = _private_fd(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL)
+        if fd is not None:
             # Leave partial evidence on failure; never replace or unlink it.
             with os.fdopen(fd, 'wb') as stream:
                 stream.write(data)
@@ -190,6 +196,28 @@ class RunJournal:
             os.fsync(directory)
         finally:
             os.close(directory)
+
+    def _archive_audit(self, path, prior):
+        try:
+            run_id = json.loads(prior)['run_id']
+        except (ValueError, TypeError, KeyError):
+            run_id = None
+        if type(run_id) is not str or not _RUN_ID.fullmatch(run_id):
+            raise RunOwnerError('RUNS_RECOVERY_AUDIT_CONFLICT')
+        target = self.root / f'restored-interrupted.{run_id}.audit.json'
+        try:
+            fd = _private_fd(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL)  # never overwrites
+        except FileExistsError:
+            fd = _private_fd(target, os.O_RDONLY)
+            with os.fdopen(fd, 'rb') as stream:
+                if stream.read(4097) != prior:
+                    raise RunOwnerError('RUNS_RECOVERY_AUDIT_CONFLICT') from None
+        else:
+            with os.fdopen(fd, 'wb') as stream:
+                stream.write(prior)
+                stream.flush()
+                os.fsync(stream.fileno())
+        os.unlink(path)  # the slot name only; the evidence stays at ``target``
 
     def close(self):
         if self.fd is not None:

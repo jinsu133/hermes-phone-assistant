@@ -51,7 +51,8 @@ def register(ctx):
     from .codex_request_compat import CodexRequestCompatibility
     ctx.register_middleware("llm_request", CodexRequestCompatibility(link))
     ctx.on_unload(link.stop)
-    _start_bridge_after_load(ctx, link)
+    from .bridge_startup import start_bridge_after_load
+    start_bridge_after_load(ctx, link)
     # The stock loader registers in a deadline worker without an asyncio loop, so the
     # bridge is opened from a plugin-owned thread after load; pre_api_request remains
     # an admitted-turn fallback.
@@ -244,35 +245,3 @@ def register(ctx):
                          description="Repair recurring speech-recognition mistakes",
                          args_hint="<wrong> => <right> | list | remove <wrong>",
                          argument_mode="text")
-
-
-STARTUP_DELAYS = (5, 10, 20, 30, 60)
-
-
-def _start_bridge_after_load(ctx, link, delays=STARTUP_DELAYS, sleep=None):
-    """Open the voice bridge soon after the gateway loads the plugin, not on the first turn.
-
-    Hermes has no plugin hook for gateway start, so this uses only the plugin's own load.
-    It goes through the same ``auto_start`` gate as ``pre_api_request``: nothing happens
-    unless ``voice_enabled`` is set, after ``/voicelink off``, on a local CLI surface, or
-    while the gateway's own API server is not answering (so a CLI process never binds).
-    """
-    import threading
-    import time
-    from .voicelink import LOCAL_SURFACES, _host_surface
-    wait = sleep or time.sleep
-
-    def run():
-        for delay in delays:
-            wait(delay)
-            if _host_surface(ctx) in LOCAL_SURFACES or link.listening:
-                return
-            try:
-                link.auto_start()
-            except Exception:
-                pass
-            if link.listening:
-                return
-
-    threading.Thread(target=run, name="phone-voice-startup", daemon=True).start()
-

@@ -994,8 +994,9 @@ class VoiceLink:
         # (matched by this request's nonce); nothing is resolved from core state here.
         expected_session_id = self._runs.session_id if self._runs is not None else None
         with self._lock:
-            busy_id = expected_session_id if self._runs is not None else self._route_session_id
-            if busy_id and str(busy_id) in self._active_sessions:
+            busy_ids = ({expected_session_id, self._runs.window.current} if self._runs is not None
+                        else {self._route_session_id})
+            if any(busy and str(busy) in self._active_sessions for busy in busy_ids):
                 return 409, {"ok": False, "error": "conversation_busy"}
         speech_snapshot = None
         if self._runs is not None:

@@ -49,11 +49,17 @@ class DefaultProfileModel(unittest.TestCase):
         bridge = runs.RunsBinding.__new__(runs.RunsBinding) if hasattr(runs, 'RunsBinding') else None
         if bridge is None:
             self.skipTest('runs bridge class not exposed')
-        bridge.owner, bridge.link, bridge.session_id = Owner(), Link(), 's'
+        class Window:
+            def commit(self, session_id):
+                sent['committed'] = session_id
+
+        bridge.owner, bridge.link, bridge.window = Owner(), Link(), Window()
         bridge.config = {'model': 'saved-old', 'provider': 'saved-old', 'model_options': {}}
         bridge.submit('hi', {'request_id': 'r', 'session_id': 's', 'digest': 'd'})
         self.assertIsNone(sent['model'])
         self.assertIsNone(sent['provider'])
+        # The request runs in, and records, the session chosen when it was admitted.
+        self.assertEqual((sent['session_id'], sent['committed']), ('s', 's'))
 
 
 if __name__ == '__main__':

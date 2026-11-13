@@ -9,6 +9,7 @@ from copy import deepcopy
 import hmac
 import re
 from .voice_runs_owner import RunsOwner, RunOwnerError, FINISHED
+from .voice_session_window import SessionWindow
 
 
 
@@ -21,13 +22,19 @@ class RunsBinding:
         self.config = self.snapshot['payload']
         if self.config['mode'] != 'runs':
             raise RunOwnerError('RUNS_MODE_REQUIRED')
-        self.session_id = self.config['session_id']
+        self.base_session_id = self.config['session_id']
+        self.window = SessionWindow.from_ctx(getattr(link, 'ctx', None), self.base_session_id, link._home)
         self._request = None
         self._busy_marker = None
         self.owner = RunsOwner(link._home, client,
             on_terminal=self._terminal, on_failure=self._failure,
             on_settled=self._settled,
             poll_seconds=poll_seconds, deadline_seconds=deadline_seconds)
+
+    @property
+    def session_id(self):
+        # The session the next request will run in; fixed per request via pending['session_id'].
+        return self.window.peek()
 
     def admission(self):
         return {'schema_version': 1, 'mode': 'runs', 'strict_voice': False,
@@ -48,12 +55,15 @@ class RunsBinding:
         self._request = (pending['request_id'], self.link._session_generation,
                          pending['session_id'], pending['digest'])
         self._busy_marker = None
-        return self.owner.begin(request_id=pending['request_id'],
-            session_generation=self.link._session_generation, session_id=self.session_id,
+        session_id = pending['session_id']
+        receipt = self.owner.begin(request_id=pending['request_id'],
+            session_generation=self.link._session_generation, session_id=session_id,
             # Never send model/provider: the API server then uses its global route, which is the
             # Hermes default profile's model. Older saved overrides are ignored, not applied.
             input_text=text, model=None, provider=None,
             model_options=deepcopy(self.config['model_options']))
+        self.window.commit(session_id)
+        return receipt
 
     def note_turn(self, user_message, session_id, marker):
         # Called under the link gate, including a late pre-hook after cancellation.
@@ -126,6 +136,8 @@ class RunsBinding:
         with self.link._lock:
             if scope['state'] in FINISHED:
                 self.link._request_cleanup_pending.discard(scope['request_id'])
+                if scope['session_id'] == self.window.current:
+                    self.window.touch()
                 expected = self._request
                 if expected is not None and expected[:3] == (
                         scope['request_id'], scope['session_generation'], scope['session_id']):

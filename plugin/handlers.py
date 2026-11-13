@@ -4,6 +4,7 @@ import json
 import math
 from .backend import BackendDenied, Denied, query
 from .actions import query_control, query_plan, validate_action
+from .observe_compact import compact_observation
 from .voice_drafts import DraftWorkspace
 from .voice_documents import VoiceDocuments
 from .voice_revision import prepare_revision, save_revision
@@ -469,7 +470,10 @@ class Handlers:
                     raise Denied('VOICE_OWNER_REQUIRED')
                 value = await self._wait_voice(value, voice_request, filename)
 
-            return json.dumps({'ok':True, 'operation':operation, 'result':value}, ensure_ascii=False)
+            if operation == 'observe':
+                value = compact_observation(value)
+            return json.dumps({'ok':True, 'operation':operation, 'result':value}, ensure_ascii=False,
+                              separators=(',', ':') if operation == 'observe' else None)
         except asyncio.CancelledError:
             return json.dumps({'ok':False,'error':'CANCELLED'})
         except Denied as exc:

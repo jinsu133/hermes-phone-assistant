@@ -23,6 +23,8 @@ TERMINAL = frozenset({'completed', 'failed', 'cancelled', 'interrupted'})
 FINISHED = frozenset({'completed', 'failed', 'cancelled', 'interrupted', 'rejected', 'not_started'})
 _ID = re.compile(r'[A-Za-z0-9_-]{1,128}\Z')
 _RUN_ID = re.compile(r'run_[a-f0-9]{32}\Z')
+# Wall-clock load time of this plugin process; earlier journal writes came from a previous one.
+_PROCESS_STARTED = time.time()
 _ERROR = re.compile(r'RUNS_[A-Z0-9_]{1,64}\Z')
 
 
@@ -148,6 +150,15 @@ class RunJournal:
             except FileNotFoundError:
                 pass
 
+    def written_before(self, expected_fd, started):
+        """True only when the retained journal's record predates ``started`` (wall clock)."""
+        if expected_fd is None or self.fd != expected_fd:
+            return False
+        try:
+            return os.lstat(self.path).st_mtime < started
+        except OSError:
+            return False
+
     def preserve_restored(self, record):
         """One private audit slot: never overwrite evidence or grow without bound.
 
@@ -238,9 +249,17 @@ class RunsOwner:
         try:
             try:
                 result = client.status(snapshot['run_id'])
-            except Exception:
+            except Exception as exc:
                 # No raw remote error, response, or answer is persisted/delivered.
-                return False
+                # Run status lives in the API server's memory, so after a gateway
+                # restart it answers 404 for the old run: it is not running anywhere
+                # that server can reach. Only a journal written by an earlier process
+                # counts; a run this process submitted is never settled this way.
+                if not (getattr(exc, 'http_status', None) == 404
+                        and journal.written_before(fd, _PROCESS_STARTED)):
+                    return False
+                result = {'run_id': snapshot['run_id'], 'session_id': snapshot['session_id'],
+                          'status': 'interrupted'}
             if (type(result) is not dict or type(result.get('run_id')) is not str
                     or type(result.get('session_id')) is not str
                     or type(result.get('status')) is not str

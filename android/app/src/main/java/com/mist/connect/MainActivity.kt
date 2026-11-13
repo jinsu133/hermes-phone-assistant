@@ -26,6 +26,7 @@ class MainActivity : ComponentActivity() {
     private var diagnosticText by mutableStateOf("")
     private val commands = HomeCommandRouter()
     private val uiHandler = android.os.Handler(android.os.Looper.getMainLooper())
+    private val HOST_CHECK_MS = 15_000L
 
     override fun onCreate(state: Bundle?) {
         super.onCreate(state)
@@ -269,6 +270,16 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         VoiceForegroundService.transcript.setVisible(true)
         restorePhoneControl()
+        HostReadinessProbe.run(this)
+        uiHandler.postDelayed(hostCheck, HOST_CHECK_MS)
+    }
+
+    /** Keep the Hermes row a live observation (results expire after 30 s) while home is open. */
+    private val hostCheck = object : Runnable {
+        override fun run() {
+            HostReadinessProbe.run(this@MainActivity, quiet = true)
+            uiHandler.postDelayed(this, HOST_CHECK_MS)
+        }
     }
 
     /** An app update or process restart stops the phone-control service while accessibility
@@ -283,6 +294,7 @@ class MainActivity : ComponentActivity() {
         } catch (_: RuntimeException) { }
     }
     override fun onPause() {
+        uiHandler.removeCallbacks(hostCheck)
         VoiceForegroundService.transcript.setVisible(false)
         refreshDiagnostics()
         super.onPause()

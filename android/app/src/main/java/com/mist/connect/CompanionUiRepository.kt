@@ -77,11 +77,15 @@ internal object CompanionUiRepository {
             widgetLease?.close(); widgetLease = null
         }
     }
-    @Synchronized fun beginReadiness(context: Context): Long {
+    /** quiet keeps a still-fresh settled result on screen while it is re-checked. */
+    @Synchronized fun beginReadiness(context: Context, quiet: Boolean = false): Long {
         attach(context)
+        val fresh = readiness != SetupReadiness.Phase.UNCHECKED && readiness != SetupReadiness.Phase.CHECKING &&
+            SystemClock.elapsedRealtime() - readinessAt < 30_000L
+        val version = ++readinessVersion
+        if (quiet && fresh) return version
         readiness = SetupReadiness.Phase.CHECKING
         readinessAt = SystemClock.elapsedRealtime()
-        val version = ++readinessVersion
         read(context)
         VoiceWidget.scheduleExpiry(context, readinessAt + 30_000L)
         return version

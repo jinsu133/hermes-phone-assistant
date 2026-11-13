@@ -30,7 +30,7 @@ public final class VoiceDiagnosticJournal {
     private static final Set<String> TYPES=new HashSet<>(Arrays.asList("IllegalStateException","IllegalArgumentException",
         "IOException","EOFException","SocketException","SocketTimeoutException","InterruptedIOException",
         "InterruptedException","SecurityException","UnsatisfiedLinkError","NoClassDefFoundError","OutOfMemoryError",
-        "NullPointerException","RuntimeException","Exception","Error","Throwable","VoicePlaybackFailure","BridgeException","Failure"));
+        "NullPointerException","RuntimeException","Exception","Error","Throwable","VoicePlaybackFailure","BridgeException","Failure","JSONException"));
     static { for(VoicePlaybackFailure.Stage s:VoicePlaybackFailure.Stage.values())STAGES.add(s.name()); }
     private static final Set<String> CATEGORIES=new HashSet<>(Arrays.asList("none","IOError","Interrupted","OtherError","AUTH","STALE","EXPIRED","CLEANUP","TRANSPORT","SCHEMA","REJECTED","PROTOCOL","TIMEOUT"));
     static { for(VoicePlaybackFailure.Category c:VoicePlaybackFailure.Category.values())CATEGORIES.add(c.name()); }

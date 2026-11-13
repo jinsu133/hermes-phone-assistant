@@ -1,6 +1,8 @@
 """Exact request-bound speech dispatch; no auto provider/credential fallback.
 
-STT is this plugin's own on-device Android provider. TTS is Hermes' configured
+STT is either Hermes' own speech-to-text routing (``hermes-stt``: the operator's
+``stt.provider``, whatever engine Hermes supports) or this plugin's on-device Android
+provider (``android-native``). TTS is Hermes' configured
 ``text_to_speech`` tool, reached through ``ctx.dispatch_tool`` (for example the Nous
 Portal subscription via the Tool Gateway). The plugin reads no Hermes config file and
 holds no speech credential. Catalog saveability is NOT runtime support. No provider is
@@ -12,6 +14,48 @@ from pathlib import Path
 from types import MappingProxyType
 
 from .speech_settings import SpeechSettings, validate_speech
+
+
+def _core_transcribe():
+    """Hermes' own STT entry point (the one its bundled platform adapters use), or None.
+
+    It resolves the operator's ``stt.provider`` (built-ins, command providers, provider
+    plugins) and holds the credentials; the plugin never sees them.
+    """
+    try:
+        from tools.transcription_tools import transcribe_audio
+    except Exception:
+        return None
+    return transcribe_audio if callable(transcribe_audio) else None
+
+
+def _hermes_transcribe(path, model):
+    """Transcribe through Hermes core; return the plugin's STT envelope. Never raises."""
+    transcribe = _core_transcribe()
+    if transcribe is None:
+        return dict(success=False, transcript='', provider='hermes-stt',
+                    error='SPEECH_STT_DISPATCH_UNAVAILABLE')
+    kwargs = dict(model=model)
+    try:
+        # ``source`` (the pre_transcription hook's surface label) is newer than some cores.
+        import inspect
+        if 'source' in inspect.signature(transcribe).parameters:
+            kwargs['source'] = 'voice_mode'
+    except (TypeError, ValueError):
+        pass
+    try:
+        result = transcribe(str(path), **kwargs)
+    except Exception:
+        return dict(success=False, transcript='', provider='hermes-stt', error='SPEECH_STT_PROVIDER_FAILED')
+    if not isinstance(result, Mapping):
+        return dict(success=False, transcript='', provider='hermes-stt', error='SPEECH_STT_RESULT_INVALID')
+    transcript = result.get('transcript')
+    if result.get('success') is True and isinstance(transcript, str):
+        return dict(success=True, transcript=transcript, provider='hermes-stt')
+    # Core error text can name missing keys or setup steps; it carries no secret values.
+    error = result.get('error')
+    return dict(success=False, transcript='', provider='hermes-stt',
+                error=error[:300] if isinstance(error, str) and error else 'SPEECH_STT_PROVIDER_FAILED')
 
 
 class SpeechRuntimeError(RuntimeError):
@@ -115,6 +159,10 @@ class SpeechRuntime:
                 choice = value['inherited_stt']
                 if choice is None:
                     raise SpeechRuntimeError('SPEECH_INHERITED_STT_UNREADY')
+            if choice['provider'] == 'hermes-stt':
+                if _core_transcribe() is None:
+                    raise SpeechRuntimeError('SPEECH_STT_DISPATCH_UNAVAILABLE')
+                return choice
             if choice['provider'] != 'android-native':
                 raise SpeechRuntimeError('SPEECH_STT_ADAPTER_UNREADY')
             connection = self.ctx.get_config('connection_file')
@@ -141,6 +189,8 @@ class SpeechRuntime:
             choice = self._route(value, 'stt')
         except SpeechRuntimeError as error:
             return dict(success=False, transcript='', provider=None, error=str(error))
+        if choice['provider'] == 'hermes-stt':
+            return _hermes_transcribe(path, choice.get('model'))
         from .android_stt import AndroidTranscriptionProvider
         return AndroidTranscriptionProvider(self.ctx).transcribe(
             path, model=choice['model'], language=choice['language'])

@@ -1066,13 +1066,24 @@ class VoiceLink:
                      "delivery": "runs" if self._runs is not None else "queued"}
 
     def _transcribe(self, path: str, snapshot) -> dict:
-        """Speech-to-text through this plugin's own registered provider (on-device Android).
+        """Speech-to-text through the selected adapter (see speech_runtime).
 
-        Hermes exposes STT to plugins only as a provider registry, not as a callable route,
-        so the bridge calls the provider it registered itself. No core STT module is used.
+        ``hermes-stt`` is Hermes core's own STT routing (the operator's ``stt.provider``);
+        ``android-native`` is this plugin's on-device provider. Queued delivery has no
+        request snapshot, so it reads the current selection; anything but an explicit
+        ``hermes-stt`` choice keeps the on-device provider it always used.
         """
         if self._runs is not None:
             return self.speech_runtime().transcribe(path, snapshot)
+        from .speech_runtime import SpeechRuntimeError
+        from .speech_settings import SettingsError
+        try:
+            runtime = self.speech_runtime()
+            current = runtime.snapshot()
+            if current['payload']['stt'].get('provider') == 'hermes-stt':
+                return runtime.transcribe(path, current)
+        except (SpeechRuntimeError, SettingsError):
+            pass
         from .android_stt import AndroidTranscriptionProvider
         return AndroidTranscriptionProvider(self.ctx).transcribe(
             path, model=self.ctx.get_config("stt_model", None),

@@ -237,7 +237,8 @@ def _selection(value, audience, kind):
     if kind == 'stt' and value['voice'] is not None:
         raise ValueError('stt_voice_invalid')
     reference = value['credential_ref']
-    if provider in ('android-native', 'local'):
+    # Hermes-routed adapters use Hermes' own provider configuration; the plugin holds no reference.
+    if provider in ('android-native', 'local', 'hermes-stt', 'hermes-tts'):
         if reference is not None: raise ValueError('reference_unexpected')
     else:
         if (type(reference) is not dict or set(reference) != {'scope','id'}

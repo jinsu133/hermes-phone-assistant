@@ -278,7 +278,11 @@ class VoiceRequestService : Service() {
             honourForegroundStart(startId, stop = true)
             return START_NOT_STICKY
         }
-        normalStreaming = prefs.getBoolean("voice_streaming", false) // explicit opt-in, never Intent-controlled
+        // Stock Hermes buffers speech through its own text_to_speech tool: /status reports
+        // streaming=null, so a stream can never be provisioned. Older builds left a
+        // voice_streaming=true flag behind; honouring it failed every request at
+        // controller_stream ("Hermes에 연결하지 못했어요") while readiness showed green.
+        normalStreaming = false
         val controllerTrial = intent?.getBooleanExtra(CONTROLLER_TRIAL, false) == true
         val trialTransport = if (controllerTrial) controllerTrialFactory?.invoke(playback) else null
         if (controllerTrial && trialTransport == null) {

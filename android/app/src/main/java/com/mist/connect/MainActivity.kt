@@ -53,6 +53,7 @@ class MainActivity : ComponentActivity() {
                 .putExtra(PermissionOverviewActivity.EXTRA_START_GUIDED, true))
         }
         command(HomeCommand.LOCK_SETTINGS, R.string.action_lock_settings, HomeSection.EVERYDAY) { startActivity(Intent(this, LockSettingsActivity::class.java)) }
+        command(HomeCommand.WAKE_SETTINGS, R.string.action_wake_settings, HomeSection.EVERYDAY) { startActivity(Intent(this, WakeSettingsActivity::class.java)) }
         command(HomeCommand.CONTROL_CONSENT, R.string.action_control_consent, HomeSection.EVERYDAY) {
             AlertDialog.Builder(this).setTitle(R.string.consent_title).setMessage(R.string.consent_message)
                 .setNegativeButton(R.string.consent_revoke) { _, _ -> getSharedPreferences("handsfree", MODE_PRIVATE).edit().putBoolean("control_consent", false).apply(); stopService(Intent(this, McpService::class.java)) }

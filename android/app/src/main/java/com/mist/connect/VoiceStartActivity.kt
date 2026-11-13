@@ -28,8 +28,8 @@ class VoiceStartActivity : Activity() {
     private fun begin() {
         val prefs = getSharedPreferences("handsfree", MODE_PRIVATE)
         if (!prefs.getBoolean("consent", false)) {
-            AlertDialog.Builder(this).setTitle(R.string.start_consent_title)
-                .setMessage(R.string.start_consent_message)
+            AlertDialog.Builder(this).setTitle(getString(R.string.start_consent_title, WakeSettings.wakePhrase(this)))
+                .setMessage(getString(R.string.start_consent_message, WakeSettings.wakePhrase(this), WakeSettings.stopPhrase(this)))
                 .setNegativeButton(R.string.cancel) { _, _ -> finish() }
                 .setPositiveButton(R.string.start_consent_accept) { _, _ -> prefs.edit().putBoolean("consent", true).apply(); launch() }
                 .setOnCancelListener { finish() }.show()

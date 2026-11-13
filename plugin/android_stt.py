@@ -1,4 +1,8 @@
-"""Android on-device Korean STT via the paired companion; no cloud fallback.
+"""Android on-device STT via the paired companion; no cloud fallback.
+
+The phone recognizes speech in the companion app's display language, so spoken approval
+phrases (shown in that language) always meet a matching model. The host's language option
+is accepted for compatibility but cannot change the recognizer language.
 
 Registered only through the public TranscriptionProvider plugin contract. Registration
 and availability checks open no network socket and never start a microphone.
@@ -12,6 +16,13 @@ from .stt_outcome import validated
 
 MAX_PCM = 16000 * 2 * 30
 MAX_RESPONSE = 32768
+APP_LANGUAGES = ("en-US", "ko-KR", "ja-JP", "zh-CN", "es-ES", "fr-FR", "de-DE", "pt-BR",
+                 "vi-VN", "id-ID", "th-TH", "hi-IN")
+
+
+def language_hint_ok(language):
+    # A fixed host value (for example "ko") must not break approvals in another app language.
+    return language is None or (isinstance(language, str) and len(language) <= 35)
 
 
 class AndroidTranscriptionProvider(TranscriptionProvider):
@@ -24,14 +35,14 @@ class AndroidTranscriptionProvider(TranscriptionProvider):
 
     @property
     def display_name(self):
-        return "Android Korean (on-device only)"
+        return "Android on-device (app language)"
 
     def is_available(self):
         return isinstance(self.ctx.get_config("connection_file"), str)
 
     def list_models(self):
-        return [{"id": "on-device-ko", "display": "Installed Android Korean model",
-                 "languages": ["ko-KR"], "max_audio_seconds": 30}]
+        return [{"id": "on-device-ko", "display": "Installed Android model for the app language",
+                 "languages": list(APP_LANGUAGES), "max_audio_seconds": 30}]
 
     def default_model(self):
         return "on-device-ko"
@@ -41,7 +52,7 @@ class AndroidTranscriptionProvider(TranscriptionProvider):
             return {"success": False, "transcript": "", "provider": self.name, "error": code}
         if model not in (None, "", "on-device-ko"):
             return fail("android_stt_model_unsupported")
-        if language not in (None, "", "ko", "ko-KR"):
+        if not language_hint_ok(language):
             return fail("android_stt_language_unsupported")
         conn = None
         pcm = None

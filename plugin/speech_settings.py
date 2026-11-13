@@ -249,7 +249,7 @@ def _selection(value, audience, kind):
         if canonical != reference['id']: raise ValueError('reference_invalid')
         if audience == 'external' and reference['scope'] != 'user': raise ValueError('external_reference_required')
     if provider == 'android-native' and (kind != 'stt' or value['model'] not in (None,'on-device-ko')
-                                       or value['language'] not in (None,'ko','ko-KR')):
+                                       or not (value['language'] is None or (type(value['language']) is str and len(value['language']) <= 35))):
         raise ValueError('android_option_unsupported')
     return deepcopy(value)
 

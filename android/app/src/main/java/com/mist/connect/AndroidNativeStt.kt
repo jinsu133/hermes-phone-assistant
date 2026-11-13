@@ -158,9 +158,12 @@ internal object AndroidNativeStt {
         }
         fun text(bundle: Bundle?): String = bundle?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
             ?.firstOrNull().orEmpty()
+        // Recognize in the app's display language so spoken approval phrases (shown in that
+        // language) can match, whatever language the host's stt_language option names.
+        val preferred = AppText.get(R.string.stt_locale, SttLanguage.FALLBACK)
         val intent = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
-            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, "ko-KR")
+            .putExtra(RecognizerIntent.EXTRA_LANGUAGE, preferred)
             .putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE, pipes[0])
             .putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_CHANNEL_COUNT, 1)
             .putExtra(RecognizerIntent.EXTRA_AUDIO_SOURCE_ENCODING, AudioFormat.ENCODING_PCM_16BIT)
@@ -218,9 +221,14 @@ internal object AndroidNativeStt {
                             if (completion.isTerminal()) return
                             if (!active()) { cancel(); return }
                             if (!writerReserved.compareAndSet(false, true)) return
-                            if ("ko-KR" !in support.installedOnDeviceLanguages) {
-                                finish(null, "stt_korean_model_missing", Terminal.MODEL_MISSING); return
+                            // No silent fallback to another language: a phrase in the app's language
+                            // must never be decoded by a model for a different one.
+                            val language = SttLanguage.pick(support.installedOnDeviceLanguages, preferred)
+                            if (language == null) {
+                                finish(null, if (SttLanguage.primary(preferred) == "ko") "stt_korean_model_missing"
+                                    else "stt_language_model_missing", Terminal.MODEL_MISSING); return
                             }
+                            intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, language)
                             if (budget != null && !budget.canStart(android.os.SystemClock.elapsedRealtime())) {
                                 finish(null, "stt_pacing_budget_exceeded", Terminal.PACING_BUDGET); return
                             }

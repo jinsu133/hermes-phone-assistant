@@ -19,12 +19,13 @@ object AppText {
     }
 
     /** Wake-wait line; the service also compares against it to keep a rejection notice visible. */
-    fun wakeWait(): String = get(R.string.rt_wake_wait, "듣기 ON · ‘헤이 헤르메스’ 대기")
+    fun wakeWait(): String = WakeSettings.wakePhrase().let { get(R.string.rt_wake_wait, "듣기 ON · ‘$it’ 대기", it) }
 }
 
 class HermesApp : Application() {
     override fun onCreate() {
         super.onCreate()
         AppText.init(this)
+        WakeSettings.init(this)
     }
 }

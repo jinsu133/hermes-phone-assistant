@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.MistConnect.Dialog" parent="android:Theme.Material.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/mist_dialog_background</item>
+        <item name="android:colorBackground">@color/mist_dialog_surface</item>
+        <item name="android:colorPrimary">@color/mist_dialog_ink</item>
+        <item name="android:colorAccent">@color/mist_dialog_action</item>
+        <item name="android:textColorPrimary">@color/mist_dialog_ink</item>
+        <item name="android:textColorSecondary">@color/mist_dialog_body</item>
+        <item name="android:textColorAlertDialogListItem">@color/mist_dialog_ink</item>
+        <item name="android:windowTitleStyle">@style/MistDialogTitle</item>
+    </style>
+</resources>

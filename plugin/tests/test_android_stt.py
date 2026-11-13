@@ -92,8 +92,12 @@ class AndroidSttContract(unittest.TestCase):
     def test_no_network_on_invalid_audio(self):
         bad=Path(TMP.name)/"bad.wav"; bad.write_bytes(b"not wave")
         self.assertFalse(self.provider.transcribe(bad)["success"]); self.assertEqual(Fixture.calls,[])
-    def test_language_and_model_no_network(self):
-        self.assertFalse(self.provider.transcribe(self.wav,language="en-US")["success"])
+    def test_host_language_cannot_break_app_language(self):
+        # The phone picks the app's language; a fixed host value is only a compatibility hint.
+        for language in ["ko", "ko-KR", "en-US", "auto"]:
+            self.assertTrue(self.provider.transcribe(self.wav,language=language)["success"])
+    def test_model_and_bad_language_no_network(self):
+        self.assertFalse(self.provider.transcribe(self.wav,language=["ko"])["success"])
         self.assertFalse(self.provider.transcribe(self.wav,model="whisper-1")["success"])
         self.assertEqual(Fixture.calls,[])
     def test_pairing_permission_fail_closed(self):

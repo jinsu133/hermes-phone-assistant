@@ -37,7 +37,7 @@ def discover(*, profile=None, scope=None, core_root=None):
         raise ValueError('SPEECH_SCOPE_INVALID')
     rows = [
         _row('stt', 'android-native', 'phone:android-native', streaming='file_transcription',
-             languages=['ko-KR'], auth='paired_device_required',
+             languages=['en-US','ko-KR','ja-JP','zh-CN','es-ES','fr-FR','de-DE','pt-BR','vi-VN','id-ID','th-TH','hi-IN'], auth='paired_device_required',
              note='paired_device_and_installed_model_required'),
         _row('tts', 'hermes-tts', 'hermes:text_to_speech', streaming='buffered_file',
              languages=None, auth='hermes_tts_provider',

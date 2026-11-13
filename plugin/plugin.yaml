@@ -63,8 +63,8 @@ config_schema:
     description: Model id for the on-device Android recognizer used for speech-to-text.
   stt_language:
     type: str
-    default: ko-KR
-    description: Language hint for the on-device Android recognizer.
+    default: auto
+    description: Kept for compatibility. The phone always recognizes speech in the companion app's language, so any value here is ignored.
   voice_bind_port:
     type: int
     default: 5001

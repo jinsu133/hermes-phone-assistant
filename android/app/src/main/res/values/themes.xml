@@ -1,5 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.MistConnect" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.MistConnect" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:alertDialogTheme">@style/Theme.MistConnect.Dialog</item>
+    </style>
+
+    <!-- Consent/start window: only the themed alert is visible. -->
+    <style name="Theme.MistConnect.Transparent" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:alertDialogTheme">@style/Theme.MistConnect.Dialog</item>
+    </style>
+
+    <!-- Framework AlertDialogs use the app's warm paper / ink / brass palette (see ui/theme/Theme.kt). -->
+    <style name="Theme.MistConnect.Dialog" parent="android:Theme.Material.Light.Dialog.Alert">
+        <item name="android:windowBackground">@drawable/mist_dialog_background</item>
+        <item name="android:colorBackground">@color/mist_dialog_surface</item>
+        <item name="android:colorPrimary">@color/mist_dialog_ink</item>
+        <item name="android:colorAccent">@color/mist_dialog_action</item>
+        <item name="android:textColorPrimary">@color/mist_dialog_ink</item>
+        <item name="android:textColorSecondary">@color/mist_dialog_body</item>
+        <item name="android:textColorAlertDialogListItem">@color/mist_dialog_ink</item>
+        <item name="android:windowTitleStyle">@style/MistDialogTitle</item>
+    </style>
+
+    <style name="MistDialogTitle" parent="android:TextAppearance.Material.DialogWindowTitle">
+        <item name="android:textColor">@color/mist_dialog_ink</item>
+    </style>
 </resources>

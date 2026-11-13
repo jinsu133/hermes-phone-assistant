@@ -12,7 +12,7 @@ import java.util.zip.ZipInputStream
  */
 internal class KoreanStopDetector(context: Context, active: () -> Boolean, private val preview: (String, Boolean) -> Unit) : AutoCloseable {
     private val gate = WakePhraseGate()
-    private val stopGate = StopPhraseGate()
+    private val stopGate = StopPhraseGate(WakeSettings.stopTexts(context))
     var stopped = false
         private set
     var endpointEvidence: SpeechEndGate.Evidence = SpeechEndGate.Evidence.NONE

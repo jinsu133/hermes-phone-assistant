@@ -24,11 +24,12 @@
 
         <activity android:name="com.mist.connect.SetupActivity" android:exported="false" />
         <activity android:name="com.mist.connect.PermissionOverviewActivity" android:exported="false" />
-        <activity android:name="com.mist.connect.LockSettingsActivity" android:exported="false" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
-        <activity android:name="com.mist.connect.WakeDiagnosticActivity" android:exported="false" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
+        <activity android:name="com.mist.connect.WakeSettingsActivity" android:exported="false" />
+        <activity android:name="com.mist.connect.LockSettingsActivity" android:exported="false" android:theme="@style/Theme.MistConnect" />
+        <activity android:name="com.mist.connect.WakeDiagnosticActivity" android:exported="false" android:theme="@style/Theme.MistConnect" />
         <activity android:name="com.mist.connect.ActionConfirmationActivity" android:exported="false" android:excludeFromRecents="true" android:taskAffinity="" android:theme="@android:style/Theme.Material.Light.NoActionBar" />
         <activity android:name="com.mist.connect.UnlockActivity" android:exported="false" android:excludeFromRecents="true" android:taskAffinity="" android:theme="@android:style/Theme.Material.NoActionBar" />
-        <activity android:name="com.mist.connect.VoiceStartActivity" android:taskAffinity="" android:exported="false" android:excludeFromRecents="true" android:theme="@android:style/Theme.Material.Dialog.NoActionBar" />
+        <activity android:name="com.mist.connect.VoiceStartActivity" android:taskAffinity="" android:exported="false" android:excludeFromRecents="true" android:theme="@style/Theme.MistConnect.Transparent" />
         <receiver android:name="com.mist.connect.VoiceWidget" android:exported="false" android:label="헤르메스 듣기">
             <intent-filter><action android:name="android.appwidget.action.APPWIDGET_UPDATE" /></intent-filter>
             <meta-data android:name="android.appwidget.provider" android:resource="@xml/voice_widget_info" />

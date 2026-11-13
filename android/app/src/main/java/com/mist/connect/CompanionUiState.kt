@@ -87,7 +87,7 @@ internal object CompanionUiText {
     fun phase(phase: UiPhase): String = when (phase) {
         UiPhase.UNOBSERVED, UiPhase.OBSERVING -> AppText.get(R.string.status_unknown, "상태 전환 중 · 확인되지 않음")
         UiPhase.PREPARING -> AppText.get(R.string.status_preparing, "음성 요청 준비 중")
-        UiPhase.WAKE_WAIT -> AppText.get(R.string.status_wake, "호출어 대기 중")
+        UiPhase.WAKE_WAIT -> WakeSettings.wakePhrase().let { AppText.get(R.string.status_wake, "‘$it’ 호출 대기 중", it) }
         UiPhase.CAPTURING -> AppText.get(R.string.status_capturing, "요청 녹음 중")
         UiPhase.SUBMITTING -> AppText.get(R.string.status_submitting, "음성 요청 전송 중")
         UiPhase.WAITING_REPLY -> AppText.get(R.string.status_waiting, "답변 대기 중")
@@ -152,8 +152,8 @@ internal object CompanionUiText {
         state.service?.waiting == ServiceUiPublication.Wait.APPROVAL -> R.string.status_approval
         state.service?.waiting == ServiceUiPublication.Wait.UNLOCK -> R.string.status_unlock
         else -> phaseId(state.phase)
-    })
-    fun nextStep(context: Context, state: CompanionUiState): String = context.getString(when {
+    }, WakeSettings.wakePhrase(context))
+    fun nextStep(context: Context, state: CompanionUiState): String = (when {
         state.service?.blocker == ServiceUiPublication.Blocker.CLEANUP_UNCERTAIN -> R.string.step_diagnostics
         state.offPending || state.phase == UiPhase.OFF_NOT_CONFIRMED || state.phase == UiPhase.STOPPING -> R.string.step_wait_off
         state.service?.waiting == ServiceUiPublication.Wait.APPROVAL -> R.string.step_approval
@@ -164,7 +164,7 @@ internal object CompanionUiText {
         state.phase == UiPhase.UNOBSERVED || state.phase == UiPhase.OBSERVING -> R.string.step_observe
         state.phase == UiPhase.OFF_CONFIRMED -> R.string.step_listen
         else -> R.string.step_ready
-    })
+    }.let { id -> context.getString(id, if (id == R.string.step_ready) WakeSettings.stopPhrase(context) else WakeSettings.wakePhrase(context)) })
     fun details(context: Context, state: CompanionUiState): String = buildString {
         append(context.getString(if (state.locked) R.string.detail_locked else R.string.detail_unlocked))
         append(" · ")

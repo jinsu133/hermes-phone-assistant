@@ -204,9 +204,13 @@ private fun ListenControls(state: CompanionUiState, byCommand: Map<HomeCommand, 
             Text(other.title)
         }
     }
-    Text(stringResource(R.string.home_tagline), style = MaterialTheme.typography.bodySmall,
+    Text(stringResource(R.string.home_tagline, WakeSettings.wakePhrase()), style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center,
         modifier = Modifier.fillMaxWidth())
+    byCommand[HomeCommand.WAKE_SETTINGS]?.let { words ->
+        TextButton(onClick = { onCommand(words.command) },
+            modifier = Modifier.fillMaxWidth().testTag("home-${words.command.name}")) { Text(words.title) }
+    }
 }
 
 @Composable
@@ -311,7 +315,7 @@ private fun ExpandableSection(section: HomeSection, state: CompanionUiState, dia
             if (section == HomeSection.DIAGNOSTICS) {
                 Text(stringResource(R.string.diagnostics_heading), style = MaterialTheme.typography.titleSmall,
                     modifier = Modifier.semantics { heading() })
-                Text(stringResource(R.string.home_explanation), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.home_explanation, WakeSettings.stopPhrase()), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Text(stringResource(R.string.diagnostics_service_note, state.serviceMessage),
                     style = MaterialTheme.typography.bodySmall)
                 Text(CompanionUiText.details(LocalContext.current, state), style = MaterialTheme.typography.bodySmall)

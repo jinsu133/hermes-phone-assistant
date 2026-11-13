@@ -8,7 +8,7 @@ ERROR_REASONS = {
 ERRORS = frozenset(ERROR_REASONS) | {
     'stt_wrong_thread', 'stt_pcm_invalid', 'stt_busy', 'stt_request_invalid',
     'stt_pipe_unavailable', 'stt_on_device_unavailable', 'stt_text_too_large',
-    'stt_korean_model_missing', 'stt_source_io', 'stt_start_failed',
+    'stt_korean_model_missing', 'stt_language_model_missing', 'stt_source_io', 'stt_start_failed',
     'stt_setup_failed', 'stt_timeout',
 } | {'stt_android_error_' + str(i) for i in range(1, 16)} | {
     'stt_support_error_' + str(i) for i in range(1, 16)}

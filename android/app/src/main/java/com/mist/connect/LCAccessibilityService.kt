@@ -28,6 +28,7 @@ class LCAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         serviceInfo = serviceInfo.apply { flags = flags or android.accessibilityservice.AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS }
         instance = this
+        PhoneControl.restore(this)
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {}

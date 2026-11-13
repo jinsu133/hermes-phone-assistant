@@ -278,20 +278,13 @@ class MainActivity : ComponentActivity() {
     private val hostCheck = object : Runnable {
         override fun run() {
             HostReadinessProbe.run(this@MainActivity, quiet = true)
+            restorePhoneControl()
             uiHandler.postDelayed(this, HOST_CHECK_MS)
         }
     }
 
-    /** An app update or process restart stops the phone-control service while accessibility
-     * stays on, and home then reported accessibility as missing. Bring the service back only
-     * when the user already consented to phone control and accessibility is connected. */
     private fun restorePhoneControl() {
-        if (McpService.instance != null || LCAccessibilityService.instance == null) return
-        if (!getSharedPreferences("handsfree", MODE_PRIVATE).getBoolean("control_consent", false)) return
-        try {
-            startForegroundService(Intent(this, McpService::class.java))
-            uiHandler.postDelayed({ refresh() }, 700)
-        } catch (_: RuntimeException) { }
+        if (PhoneControl.restore(this)) uiHandler.postDelayed({ refresh() }, 700)
     }
     override fun onPause() {
         uiHandler.removeCallbacks(hostCheck)

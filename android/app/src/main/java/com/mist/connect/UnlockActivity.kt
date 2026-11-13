@@ -61,10 +61,10 @@ class UnlockActivity : Activity() {
         setContentView(LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL; setPadding(48,120,48,48); setBackgroundColor(android.graphics.Color.WHITE)
             addView(TextView(this@UnlockActivity).apply {
-                text = "휴대폰 잠금을 해제해 주세요\n\n요청은 기기 메모리에서 최대 2분간 기다립니다. Android에서 직접 인증하면 같은 요청을 이어서 처리합니다.\n\n비밀번호와 지문 정보는 Hermes에 전달되지 않습니다."
+                text = getString(R.string.unlock_prompt)
                 textSize=20f; setTextColor(android.graphics.Color.BLACK)
             })
-            addView(Button(this@UnlockActivity).apply { text="요청 취소"; setOnClickListener { UnlockCoordinator.gate.cancel(ticket); finish() } })
+            addView(Button(this@UnlockActivity).apply { text=getString(R.string.unlock_cancel); setOnClickListener { UnlockCoordinator.gate.cancel(ticket); finish() } })
         })
         main.postDelayed(timeout,120000)
     }

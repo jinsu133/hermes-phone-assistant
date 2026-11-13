@@ -72,11 +72,11 @@ class McpService : Service() {
             prefs.edit().putString("phone_instance_id", it).commit()
         }
         val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel("phone_readonly", "Hermes 휴대폰 연결", NotificationManager.IMPORTANCE_LOW))
+        manager.createNotificationChannel(NotificationChannel("phone_readonly", getString(R.string.mcp_notif_title), NotificationManager.IMPORTANCE_LOW))
         startForeground(1, Notification.Builder(this, "phone_readonly")
             .setSmallIcon(android.R.drawable.ic_menu_info_details)
-            .setContentTitle("Hermes 휴대폰 연결")
-            .setContentText("기기 내부 연결 · 접근성 화면 조회와 승인된 조작").setOngoing(true).build())
+            .setContentTitle(getString(R.string.mcp_notif_title))
+            .setContentText(getString(R.string.mcp_notif_text)).setOngoing(true).build())
         try { server = McpEndpoint.bind() }
         catch (_: Exception) { stopSelf(); return }
         startNativeSttLifetime(); actionsPaused = false; ActionConfirmation.watchLocks(this)

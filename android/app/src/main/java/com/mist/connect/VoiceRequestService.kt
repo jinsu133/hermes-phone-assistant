@@ -185,10 +185,10 @@ class VoiceRequestService : Service() {
     private fun honourForegroundStart(startId: Int, stop: Boolean) {
         try {
             if (running.get()) {
-                startForeground(NOTIFICATION, notification("음성 요청", status, true),
+                startForeground(NOTIFICATION, notification(getString(R.string.notif_request), status, true),
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
             } else {
-                startForeground(NOTIFICATION, notification("음성 요청", status, false),
+                startForeground(NOTIFICATION, notification(getString(R.string.notif_request), status, false),
                     ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
                 stopForeground(STOP_FOREGROUND_REMOVE)
             }
@@ -327,7 +327,7 @@ class VoiceRequestService : Service() {
         lastReplyText = ""
         status = "음성 요청을 준비하고 있습니다."
         try {
-            startForeground(NOTIFICATION, notification("음성 요청 준비", "버튼을 눌러 녹음을 전송하거나 취소할 수 있습니다.", true),
+            startForeground(NOTIFICATION, notification(getString(R.string.notif_request_ready), getString(R.string.notif_request_ready_text), true),
                 ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE)
         } catch (_: RuntimeException) {
             MicrophoneOwner.release(microphoneLease)
@@ -435,7 +435,7 @@ class VoiceRequestService : Service() {
                     status = visible
                     main.post {
                     if (running.get()) getSystemService(NotificationManager::class.java).notify(NOTIFICATION,
-                        notification("헤르메스 듣기 ON", visible, false))
+                        notification(getString(R.string.notif_listening), visible, false))
                 } }, { recorder = it }, { outcome, primary -> onCaptureCleanup(outcome, primary, displayScope) },
                 { event -> uiPublication.captureEvent(displayScope, event) }).use { capture ->
                 var followup: PlaybackTicket? = null
@@ -1084,7 +1084,7 @@ class VoiceRequestService : Service() {
             try {
                 if (running.get() && !cancelled.get()) {
                     startForeground(NOTIFICATION,
-                        notification("Hermes 음성 응답", "답변을 준비하거나 재생 중입니다. 중단하려면 누르세요.", false),
+                        notification(getString(R.string.notif_reply), getString(R.string.notif_reply_text), false),
                         if (handsfree) ServiceInfo.FOREGROUND_SERVICE_TYPE_MICROPHONE or ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK else ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK)
                 }
             } catch (_: RuntimeException) {
@@ -1456,7 +1456,7 @@ class VoiceRequestService : Service() {
 
     private fun notification(title: String, message: String, canSubmit: Boolean): Notification {
         val manager = getSystemService(NotificationManager::class.java)
-        manager.createNotificationChannel(NotificationChannel(CHANNEL, "Hermes 음성 요청", NotificationManager.IMPORTANCE_LOW))
+        manager.createNotificationChannel(NotificationChannel(CHANNEL, getString(R.string.notif_channel), NotificationManager.IMPORTANCE_LOW))
         val cancelIntent = PendingIntent.getService(this, 401,
             Intent(this, VoiceRequestService::class.java).setAction(CANCEL_REQUEST),
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
@@ -1466,12 +1466,12 @@ class VoiceRequestService : Service() {
             .setContentText(message)
             .setOnlyAlertOnce(true)
             .setOngoing(true)
-            .addAction(android.R.drawable.ic_media_pause, "중단", cancelIntent)
+            .addAction(android.R.drawable.ic_media_pause, getString(R.string.notif_stop), cancelIntent)
         if (canSubmit) {
             val submitIntent = PendingIntent.getService(this, 402,
                 Intent(this, VoiceRequestService::class.java).setAction(SUBMIT_REQUEST),
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT)
-            builder.addAction(android.R.drawable.ic_menu_send, "전송", submitIntent)
+            builder.addAction(android.R.drawable.ic_menu_send, getString(R.string.notif_send), submitIntent)
         }
         return builder.build()
     }

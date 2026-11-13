@@ -140,8 +140,8 @@ class ActionConfirmationActivity : Activity() {
                         }
                     })
                 }
-                addDecision("취소 · 실행하지 않기",false)
-                addDecision("내용을 확인했습니다 · 이 작업 한 번만 승인",true)
+                addDecision(getString(R.string.confirm_deny),false)
+                addDecision(getString(R.string.confirm_allow),true)
             })
         })
         main.postDelayed({ if (!decided) { ActionConfirmation.cancelAll(); finish() } },120000)

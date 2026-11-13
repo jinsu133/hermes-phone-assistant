@@ -37,6 +37,20 @@ public class PhoneActionPolicyTest {
   assertEquals(PhoneActionPolicy.Decision.DENY,
    PhoneActionPolicy.decide("click","com.bank.app","com.bank.app:id/send_button","android.widget.Button","보내기",false,false,false,false,true,"general"));
  }
+ private PhoneActionPolicy.Decision web(String pkg,String op,String label,boolean safe) {
+  return PhoneActionPolicy.decide(op,pkg,"","android.widget.Button",label,false,false,true,false,safe,"general");
+ }
+ @Test public void webControlsFollowTheSameRuleInEveryApp() {
+  // Many apps draw their screens in a WebView; no app gets its own gate.
+  for(String pkg:new String[]{"com.skt.tmap.ku","com.nhn.android.nmap","com.example.any"}) {
+   assertEquals(PhoneActionPolicy.Decision.ROUTINE,web(pkg,"click","도착",true));
+   assertEquals(PhoneActionPolicy.Decision.ROUTINE,web(pkg,"click","안내 시작",true));
+   assertEquals(PhoneActionPolicy.Decision.REVIEW,web(pkg,"click","도착",false));
+   assertEquals(PhoneActionPolicy.Decision.DENY,web(pkg,"click","결제하기",true));
+   assertEquals(PhoneActionPolicy.Decision.DENY,web(pkg,"click","로그인",true));
+   assertEquals(PhoneActionPolicy.Decision.DENY,web(pkg,"input_text","검색",true));
+  }
+ }
  @Test public void unknownOperationDeniedEvenWithSafeFlag() {
   assertEquals(PhoneActionPolicy.Decision.DENY,d("approve","search_input","검색",true,"general"));
  }

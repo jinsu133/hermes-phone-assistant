@@ -50,6 +50,8 @@ class VoiceRequestService : Service() {
         private const val SAMPLE_RATE = 16000
         private const val CAPTURE_LIMIT_MS = 30_000L
         internal const val REQUEST_LIMIT_MS = 9 * 60_000L
+        /** Re-stamp status well inside the overlay source TTL (30 s) while the service runs. */
+        internal const val HEARTBEAT_MS = 10_000L
         private const val REPLY_WAIT_MS = 540_000L
         private const val TTS_WAIT_MS = 180_000L
         private const val MIN_PCM_BYTES = 3200
@@ -105,7 +107,14 @@ class VoiceRequestService : Service() {
     private val turnStopped = AtomicBoolean(false)
     private var wakeLock: android.os.PowerManager.WakeLock? = null
     private val widgetTick = object : Runnable {
-        override fun run() { VoiceWidget.update(this@VoiceRequestService); if (running.get()) main.postDelayed(this, 1500) }
+        override fun run() {
+            VoiceWidget.update(this@VoiceRequestService)
+            if (running.get()) {
+                // Status liveness for the overlay's source TTL; display only.
+                uiPublication.heartbeat(uiScope, HEARTBEAT_MS)
+                main.postDelayed(this, 1500)
+            }
+        }
     }
     private val running = AtomicBoolean(false)
     private val submitRequested = AtomicBoolean(false)

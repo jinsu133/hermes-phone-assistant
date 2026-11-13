@@ -99,6 +99,16 @@ final class ServiceUiPublication {
         synchronized(gate) { if(!current(s))return; Draft d=new Draft(latest);
             if(d.blocker==Blocker.NONE)d.phase=phase; commit(d); }
     }
+    /** Liveness only: while the service is running, re-stamp the unchanged state so a long
+     * wait for the host (an app opening, a slow reply) does not look like a dead service.
+     * Throttled to stamps older than minAgeMillis; never changes phase or authority. */
+    boolean heartbeat(Scope s, long minAgeMillis) {
+        synchronized(gate) {
+            if(!same(s) || latest.revoked || latest.phase==Phase.OFF || latest.phase==Phase.STOPPING) return false;
+            if(clock.getAsLong()-latest.sourceAtMillis < minAgeMillis) return false;
+            commit(new Draft(latest)); return true;
+        }
+    }
     void waitFor(Scope s, Wait waiting) {
         synchronized(gate) { if(!current(s))return; Draft d=new Draft(latest); d.waiting=waiting; commit(d); }
     }

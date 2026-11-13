@@ -1,8 +1,13 @@
 """Bounded procedural UI learning; recipes are data, never approval capabilities.
 
-Only linear, pinned, single-app structural routes are generalized. Persisted plans
-contain no screen labels, task text, literal inputs, credentials or approval receipts.
-A final fresh structural match verifies screen arrival, NOT semantic user-goal success.
+Only linear, pinned, single-app routes are generalized. An anchor is a native resource
+id, a structural role, or a short control label (a button word such as "도착"). Labels let
+routes be learned in any app, including screens drawn in a WebView that have no ids, but
+only a bounded control label is kept: never page content, the user's query, numeric
+text, addresses, links or risk wording. Persisted plans contain no task text, literal
+inputs, credentials or approval receipts. A label-anchored route is reused only after it
+was verified LABEL_CONFIRMATIONS times. A final fresh match verifies screen arrival, NOT
+semantic user-goal success.
 """
 from contextlib import contextmanager
 from copy import deepcopy
@@ -20,6 +25,22 @@ MAX_BYTES=512*1024
 MAX_ROUTES=128
 ROLES={'search_field','search_suggestion','conversation_row'}
 OPS={'launch','await','focus','input','submit','select','click','assert'}
+LABEL_OPS={'await','select','click','assert'}
+LABEL_MAX=16
+LABEL_CONFIRMATIONS=2
+# Final effects and account/security wording are never learned as anchors.
+_LABEL_RISK=re.compile(r'결제|송금|이체|구매|주문|예약|삭제|전송|보내|전화|통화|구독|동의|권한|비밀번호|인증|로그인|'
+    r'pay|buy|purchase|checkout|subscribe|send|call|dial|delete|login|password|agree|allow',re.I)
+
+
+def _control_label(value,queries):
+    """True for a short button word, never content the screen or the user supplied."""
+    if not isinstance(value,str) or value!=value.strip() or not 1<=len(value)<=LABEL_MAX:return False
+    if len(value.split())>3 or any(c.isdigit() for c in value):return False
+    if any(c in value for c in '@/:'+chr(92)+'<>{}') or any(ord(c)<32 for c in value):return False
+    if _LABEL_RISK.search(value):return False
+    # A label that carries the spoken query is the user's content, not the app's control.
+    return not any(isinstance(q,str) and q.strip() and q.strip() in value for q in queries)
 
 class LearningError(ValueError):
     pass
@@ -39,11 +60,13 @@ def template(plan):
     budget=plan.get('budget_ms',8000)
     if type(budget) is not int or not 500<=budget<=15000:return None
     output=[];inputs=0
+    queries=[s.get('value') for s in steps if s.get('op')=='input']
     for index,step in enumerate(steps):
         op=step['op']
         if op not in OPS or (op=='launch' and index!=0):return None
-        if any(k in step for k in ('text','text_contains','index')):return None
-        if op!='launch' and not set(step)&{'id','id_suffix','role'}:return None
+        if any(k in step for k in ('text_contains','index')):return None
+        if 'text' in step and (op not in LABEL_OPS or not _control_label(step['text'],queries)):return None
+        if op!='launch' and not set(step)&{'id','id_suffix','role','text'}:return None
         for key in ('id','id_suffix'):
             value=step.get(key)
             if value is not None:
@@ -77,6 +100,7 @@ def verified(plan,result,screen):
             if key=='id' and node.get('resource_id')!=value:return False
             if key=='id_suffix' and not str(node.get('resource_id','')).endswith('/'+value):return False
             if key=='role' and node.get('role')!=value:return False
+            if key=='text' and value not in (node.get('text'),node.get('label')):return False
         return True
     return sum(matches(node) for node in nodes)==1
 
@@ -169,6 +193,10 @@ def record(home,device,plan,success,elapsed_ms):
             'next_step':'reuse_available' if success else 'reobserve_and_replan_no_automatic_retry'}
 
 
+def _label_anchored(plan):
+    return any('text' in step for step in plan['steps'])
+
+
 def list_routes(home, device=None):
     entries=_read(home)['entries']
     rows=[]
@@ -179,6 +207,8 @@ def list_routes(home, device=None):
             target={k:v for k,v in plan['steps'][-1].items() if k!='op'},
             operations=[s['op'] for s in plan['steps']],needs_query=any(s['op']=='input' for s in plan['steps']),
             successes=entry['successes'],failures=entry['failures'],
+            anchors='label' if _label_anchored(plan) else 'structural',
+            reusable=not entry['paused'] and (not _label_anchored(plan) or entry['successes']>=LABEL_CONFIRMATIONS),
             status='paused' if entry['paused'] else ('repeatedly_verified' if entry['streak']>=3 else 'candidate'),
             mean_handler_ms=entry['total_ms']//entry['successes']))
     # Recommend only among repeated screen-verified alternatives with the same
@@ -201,6 +231,8 @@ def resolve(home,identity,device,query=None):
     if entry is None:raise LearningError('LEARNING_NOT_FOUND')
     if entry['device']!=device:raise LearningError('LEARNING_DEVICE_CHANGED')
     if entry['paused']:raise LearningError('LEARNING_REPLAN_REQUIRED')
+    if _label_anchored(entry['plan']) and entry['successes']<LABEL_CONFIRMATIONS:
+        raise LearningError('LEARNING_UNCONFIRMED')
     plan=deepcopy(entry['plan'])
     for step in plan['steps']:
         if step['op']=='input':

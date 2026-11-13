@@ -17,11 +17,11 @@ internal class PhoneActions(private val service: McpService) {
     private var snapshot = ""
     private var captured = 0L
     private var foreground = ""
-    private val TMAP_ROUTE_WORD = Regex("도착|출발|경유|안내시작|안내 시작|길안내|경로|티맵추천")
-    // Only the actual turn-by-turn start has a verified adapter; without it, fail closed.
-    private val ROUTE_START = Regex("안내시작|안내 시작")
-    // Arrival keeps its dedicated strict adapter; the generic web path must not bypass it.
-    private val TMAP_ADAPTER_LABELS = setOf("도착")
+    // A control label, not page content: long text is content and is never a routine target.
+    private val GENERIC_LABEL_MAX = 60
+    private val GENERIC_CLASSES = setOf("android.widget.TextView","android.widget.LinearLayout",
+        "android.widget.FrameLayout","android.widget.RelativeLayout","android.view.ViewGroup",
+        "android.view.View","android.widget.Button","android.widget.ImageButton","android.widget.ImageView")
     private fun access(): LCAccessibilityService {
         check(McpService.instance != null && !McpService.actionsPaused) { "control_stopped" }
         check(service.getSharedPreferences("handsfree", 0).getBoolean("control_consent", false)) { "control_consent_required" }
@@ -535,6 +535,16 @@ internal class PhoneActions(private val service: McpService) {
         }
         return startLabels==0 && tokens==countLabels
     }
+    /** App-independent browsing control: labelled, clickable, not an input/toggle, not a web
+     * page container, no risk wording, and any link it carries is a plain web address. */
+    private fun genericControl(n: AccessibilityNodeInfo, m: Meaning): Boolean {
+        if(n.isEditable || n.isCheckable || !n.isClickable || !m.complete || pageRoot(n)) return false
+        val label=m.labels.trim()
+        if(label.isEmpty() || label.length>GENERIC_LABEL_MAX) return false
+        if(!ActionRiskPolicy.safeQuery(label) || PhoneActionPolicy.riskyNavigationContext(label)) return false
+        if(linked(n) && observedUrl(n).isEmpty()) return false // an app or intent link is not browsing
+        return n.className?.toString() in GENERIC_CLASSES
+    }
     private fun everyday(args: JSONObject): Boolean {
         val op = args.getString("action")
         if (op !in setOf("click", "input_text", "submit_search", "scroll_forward", "scroll_backward")) return false
@@ -558,28 +568,12 @@ internal class PhoneActions(private val service: McpService) {
             foreground in setOf("com.kakao.talk","com.google.android.apps.messaging","com.samsung.android.messaging") &&
             n.viewIdResourceName in setOf("$foreground:id/message_edit_text","$foreground:id/compose_message_text","$foreground:id/embedded_text_editor")) return true
         if(op=="click" && (nativeTmapNavigation(n,m) || tmapDetailDestination(n,m))) return true
-        // Ordinary navigation is judged by structure, not by an app allowlist: any native,
-        // labelled, non-effect control (list rows, menu items, plain buttons, icons) is browsing.
-        // Navigation, place selection and info screens run directly. Only the classified final
-        // effects (message send, outgoing call, payment) are explained and approved.
-        if(op=="click" && !m.web && !n.isEditable && !n.isCheckable && m.labels.isNotBlank() &&
-            !pageRoot(n) && ActionRiskPolicy.safeQuery(m.labels) && !PhoneActionPolicy.riskyNavigationContext(m.labels) &&
-            !(foreground=="com.skt.tmap.ku" && (ROUTE_START.containsMatchIn(m.labels) || m.labels in TMAP_ADAPTER_LABELS)) &&
-            n.className?.toString() in setOf("android.widget.TextView","android.widget.LinearLayout",
-                "android.widget.FrameLayout","android.widget.RelativeLayout","android.view.ViewGroup",
-                "android.view.View","android.widget.Button","android.widget.ImageButton")) return true
-        // TMAP draws part of its UI inside a WebView. Web content there is still allowed as
-        // ordinary browsing when the control is native-structured and labelled, because the
-        // platform renders its own buttons as native nodes. Risk wording and final effects are
-        // still classified separately and never become routine.
-        if(op=="click" && m.web && foreground=="com.skt.tmap.ku" && !n.isEditable && !n.isCheckable &&
-            !pageRoot(n) && m.labels.isNotBlank() && ActionRiskPolicy.safeQuery(m.labels) &&
-            !PhoneActionPolicy.riskyNavigationContext(m.labels) &&
-            !ROUTE_START.containsMatchIn(m.labels) && m.labels !in TMAP_ADAPTER_LABELS &&
-            n.className?.toString() in setOf("android.widget.TextView","android.widget.LinearLayout",
-                "android.widget.FrameLayout","android.widget.RelativeLayout","android.view.ViewGroup",
-                "android.view.View","android.widget.Button","android.widget.ImageButton",
-                "android.widget.ImageView")) return true
+        // Ordinary navigation is judged by structure, in every app and in both native and web
+        // content (many apps draw their screens in a WebView, which still exposes its buttons
+        // as accessibility nodes): any labelled, non-effect control is browsing. Only the
+        // classified final effects (message send, call, payment) and risk wording are approved
+        // or refused, by PhoneActionPolicy.
+        if(op=="click" && genericControl(n,m)) return true
         // Unknown destination/route labels are not navigation authority.
         return op in setOf("scroll_forward","scroll_backward") && n.isScrollable && !m.web
     }
@@ -595,22 +589,7 @@ internal class PhoneActions(private val service: McpService) {
         if(op=="click" && n!=null && (!n.isClickable || !n.isEnabled)) return PhoneActionPolicy.Decision.DENY
         // Text that an app could execute as a URI is never a routine input.
         if(op=="input_text" && !ActionRiskPolicy.safeQuery(args.optString("text"))) return PhoneActionPolicy.Decision.DENY
-        if(op=="click" && m.web && structuralSafe && n!=null && tmapDetailDestination(n,m)) return PhoneActionPolicy.Decision.ROUTINE
-        // TMAP's own WebView controls are allowed only with the structural evidence computed above;
-        // anything unverifiable still fails closed instead of asking for a generic approval.
-        if(op=="click" && m.web && foreground=="com.skt.tmap.ku" && !structuralSafe) return PhoneActionPolicy.Decision.DENY
-        // A recognized app control whose own structural evidence failed is changed or tampered:
-        // never downgrade that to a one-time approval.
-        val knownNative = n?.viewIdResourceName in setOf("com.skt.tmap.ku:id/route_preview_drive_button",
-            "com.skt.tmap.ku:id/preview_summary_item","com.skt.tmap.ku:id/suggest_text")
-        if(op=="click" && knownNative && !m.web && !structuralSafe) return PhoneActionPolicy.Decision.DENY
-        // Verified TMAP route controls are only routine with complete structural evidence.
-        // A route-worded control without it means the page structure changed: fail closed.
-        if(op=="click" && foreground=="com.skt.tmap.ku" &&
-            TMAP_ROUTE_WORD.containsMatchIn(m.labels) && !structuralSafe) return PhoneActionPolicy.Decision.DENY
-        if(op=="click" && foreground=="com.skt.tmap.ku" && !m.web && !structuralSafe && n!=null &&
-            n.className?.toString() !in setOf("android.widget.TextView","android.widget.ImageView",
-                "android.widget.ImageButton","android.widget.Button")) return PhoneActionPolicy.Decision.DENY
+        // No app-specific gates here: every app gets the same structural classification.
         return PhoneActionPolicy.decide(op,foreground,n?.viewIdResourceName ?: "",n?.className?.toString() ?: "",m.labels,
             n?.isEditable ?: false,n?.isCheckable ?: false,m.web,(n?.let { sensitive(it) } ?: false) || !m.complete,
             structuralSafe,args.optJSONObject("confirmation")?.optString("kind") ?: "")

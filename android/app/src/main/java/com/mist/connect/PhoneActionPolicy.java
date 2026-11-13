@@ -4,7 +4,8 @@ import java.util.Locale;
 import java.util.Set;
 import java.util.regex.Pattern;
 
-/** Executed-node policy. Unknown-but-safe nodes are approval-gated; risky ones stay denied. */
+/** Executed-node policy, the same for every app. Unknown-but-safe nodes are approval-gated;
+ * risky ones stay denied. */
 public final class PhoneActionPolicy {
     public enum Decision { ROUTINE, REVIEW, PAYMENT, MESSAGE, CALL, DENY }
     private static final Set<String> GLOBAL=Set.of("home","back","recents","notifications","open_app","list_apps","read_node","package_version");
@@ -16,24 +17,11 @@ public final class PhoneActionPolicy {
     private static final Pattern MESSAGE_ID=Pattern.compile("send|send_button|button_send|btn_send|send_message|sendmessage|message_send|send_btn");
     private static final Pattern CALL_ID=Pattern.compile("call|call_button|button_call|btn_call|dial|dial_button|dialpad_floating_action_button");
     private static final Pattern PAYMENT_ID=Pattern.compile("pay|pay_button|button_pay|btn_pay|purchase|purchase_button|checkout|checkout_button|confirm_payment");
-    /** Route words change the guided trip instead of browsing, so they never run as routine. */
-    private static final Pattern ROUTE_WORD=Pattern.compile("도착|출발|경유|안내시작|안내 시작|길안내|경로|티맵추천");
-    /** A bare detail-adapter label is handled by its dedicated adapter, never by the web fallback. */
-    private static final Pattern ADAPTER_LABEL=Pattern.compile("도착");
 
     /** Only own ancestor metadata, never flattened destination/sibling text. */
     public static boolean riskyNavigationContext(String value) {
         return DIRECT.matcher(value).find() || RISK.matcher(value).find() ||
             Pattern.compile("공유|share|redirect",Pattern.CASE_INSENSITIVE).matcher(value).find();
-    }
-
-    /** Internal adapter evidence only; never sourced from tool arguments. Generic web stays denied. */
-    public static Decision tmapDestinationDecision(String op,String pkg,String resource,String clazz,String label,
-            boolean editable,boolean checkable,boolean sensitive,boolean verifiedDetail,String kind) {
-        String id=resource==null?"":resource.substring(resource.lastIndexOf('/')+1);
-        return !DIRECT.matcher(id).find() && !RISK.matcher(id).find() && verifiedDetail && !editable && !checkable && !sensitive && "click".equals(op) &&
-            "com.skt.tmap.ku".equals(pkg) && "android.widget.Button".equals(clazz) && "도착".equals(label) &&
-            (kind==null || kind.isEmpty() || kind.equals("general")) ? Decision.ROUTINE : Decision.DENY;
     }
 
     public static Decision decide(String op,String pkg,String resource,String clazz,String label,
@@ -42,18 +30,14 @@ public final class PhoneActionPolicy {
         if(!NODE.contains(op) || sensitive || checkable) return Decision.DENY;
         String id=resource==null?"":resource.substring(resource.lastIndexOf('/')+1).toLowerCase(Locale.ROOT);
         String text=label==null?"":label.trim().replaceAll("\\s+"," ");
-        // Web content cannot be classified structurally: approve each click, never auto-run it.
-        // TMAP alone has a verified bounded adapter, so unverified TMAP web clicks fail closed.
+        // Web content (many apps draw screens in a WebView) is judged like native content, in
+        // every app: a structurally checked, labelled browsing control runs; anything else is
+        // approved per click. Typing into web forms and final effects there stay refused.
         if(web) {
             if(!op.equals("click")) return Decision.DENY;
-            // TMAP renders part of its own UI through a WebView, so a click there is judged by the
-            // structural evidence collected above rather than by the container type. Navigation
-            // and place controls run directly; only final effects and risk wording are blocked.
-            if("com.skt.tmap.ku".equals(pkg)) return structuralSafe && !DIRECT.matcher(text).find() &&
-                !RISK.matcher(text).find() && !ADAPTER_LABEL.matcher(text).matches() ? Decision.ROUTINE : Decision.DENY;
             if(DIRECT.matcher(id+" "+text).find() || RISK.matcher(id+" "+text).find() ||
                 (kind!=null && !kind.isEmpty() && !kind.equals("general"))) return Decision.DENY;
-            return Decision.REVIEW;
+            return structuralSafe ? Decision.ROUTINE : Decision.REVIEW;
         }
         if(DIRECT.matcher(id+(editable?"":" "+text)).find()) return Decision.DENY;
         // A structurally identified composer/search input is preparation, not final send.

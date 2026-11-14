@@ -216,10 +216,15 @@ internal class PhoneActions(private val service: McpService) {
         var count=0
         fun walk(n: AccessibilityNodeInfo, depth: Int) {
             check(++count <= 600 && depth <= 25) { "screen_too_large_for_confirmation" }
-            if (!n.isVisibleToUser) return
-            check(!sensitive(n)) { "protected_input_on_screen" }
-            if(n.isEditable && !n.text.isNullOrEmpty()) edits.add(n.text.toString())
-            lines.add(signature(n)); listOf(n.text,n.contentDescription).forEach { if(!it.isNullOrBlank()) labels.add(it.toString()) }
+            // Record only what the user can see, but keep walking: some apps (KakaoTalk chat)
+            // report a full-screen container as not visible while its children are visible.
+            // observe() already descends through such containers; stopping here dropped the
+            // message field and made every message confirmation fail with "content".
+            if (n.isVisibleToUser) {
+                check(!sensitive(n)) { "protected_input_on_screen" }
+                if(n.isEditable && !n.text.isNullOrEmpty()) edits.add(n.text.toString())
+                lines.add(signature(n)); listOf(n.text,n.contentDescription).forEach { if(!it.isNullOrBlank()) labels.add(it.toString()) }
+            }
             for (i in 0 until n.childCount) { val child=n.getChild(i) ?: continue; try { walk(child,depth+1) } finally { child.recycle() } }
         }
         try { check(root.packageName?.toString() != service.packageName); walk(root,0) } finally { root.recycle() }

@@ -28,3 +28,34 @@ def compact_observation(value):
         del out['detail_diagnosis']
     out['node_defaults'] = dict(NODE_DEFAULTS)
     return out
+
+
+# An app that was just opened shows a splash or a loading screen for a few seconds: the
+# accessibility tree is then empty, or the active window is briefly missing. A model that
+# sees one empty result often gives up, so the wait happens here instead (about 5 s at most).
+OBSERVE_SETTLE_DELAYS = (1.0, 1.5, 2.5)
+LOADING_HINT = 'No readable elements yet; the app may still be loading. Observe again before giving up.'
+
+
+def _loading(value):
+    return type(value) is dict and value.get('nodes') == [] and not value.get('state')
+
+
+async def observe_settled(args, filename, *, query=None, sleep=None):
+    import asyncio
+    from .actions import query_control
+    from .backend import Denied
+    query = query or query_control
+    sleep = sleep or asyncio.sleep
+    for delay in OBSERVE_SETTLE_DELAYS + (None,):
+        try:
+            value = await query('observe', args, filename)
+        except Denied as exc:
+            if exc.code != 'SCREEN_UNAVAILABLE' or delay is None:
+                raise
+        else:
+            if not _loading(value):
+                return value
+            if delay is None:
+                return dict(value, screen_hint=LOADING_HINT)
+        await sleep(delay)

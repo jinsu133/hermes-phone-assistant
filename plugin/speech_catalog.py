@@ -2,9 +2,6 @@
 
 None of them is opened here:
 
-- STT ``hermes-stt``: Hermes' own speech-to-text routing (``transcribe_audio``), i.e. the
-  operator's ``stt.provider`` in Hermes: local whisper, a local command, Groq, OpenAI or the
-  Nous Portal Tool Gateway, Mistral, xAI, ElevenLabs, or any registered provider plugin.
 - STT ``android-native``: this plugin's own registered transcription provider, which asks
   the paired companion app to run Android's on-device recognizer.
 - TTS ``hermes-tts``: Hermes' own ``text_to_speech`` tool, reached only through the public
@@ -39,9 +36,6 @@ def discover(*, profile=None, scope=None, core_root=None):
     if scope is not None and (type(scope) is not str or not scope or '\x00' in scope):
         raise ValueError('SPEECH_SCOPE_INVALID')
     rows = [
-        _row('stt', 'hermes-stt', 'hermes:transcribe_audio', streaming='file_transcription',
-             languages=None, auth='hermes_stt_provider',
-             note='hermes_stt_provider_configuration_required'),
         _row('stt', 'android-native', 'phone:android-native', streaming='file_transcription',
              languages=['en-US','ko-KR','ja-JP','zh-CN','es-ES','fr-FR','de-DE','pt-BR','vi-VN','id-ID','th-TH','hi-IN'], auth='paired_device_required',
              note='paired_device_and_installed_model_required'),

@@ -4,7 +4,7 @@ import json
 import math
 from .backend import BackendDenied, Denied, query
 from .actions import query_control, query_plan, validate_action
-from .observe_compact import compact_observation
+from .observe_compact import compact_observation, observe_settled
 from .voice_drafts import DraftWorkspace
 from .voice_documents import VoiceDocuments
 from .voice_revision import prepare_revision, save_revision
@@ -463,7 +463,10 @@ class Handlers:
             transport_args = dict(args)
             if operation == 'act' and voice_request and args.get('action') not in {'approval_status','cancel_approval'}:
                 transport_args['_voice_request_id'] = voice_request
-            value = await query_control(operation, transport_args, filename)
+            if operation == 'observe':
+                value = await observe_settled(transport_args, filename)
+            else:
+                value = await query_control(operation, transport_args, filename)
             if value.get('state') == 'awaiting_voice_confirmation':
                 if not voice_request:
                     await query_control('act', {'action':'cancel_approval'}, filename)

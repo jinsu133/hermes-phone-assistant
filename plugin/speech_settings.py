@@ -238,6 +238,8 @@ def _selection(value, audience, kind):
         raise ValueError('stt_voice_invalid')
     reference = value['credential_ref']
     # Hermes-routed adapters use Hermes' own provider configuration; the plugin holds no reference.
+    # 'hermes-stt' is no longer offered; it stays valid so settings saved before 0.24.2 load
+    # (speech_runtime runs them on the on-device provider).
     if provider in ('android-native', 'local', 'hermes-stt', 'hermes-tts'):
         if reference is not None: raise ValueError('reference_unexpected')
     else:

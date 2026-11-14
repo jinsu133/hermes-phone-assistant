@@ -110,6 +110,10 @@ EN: dict[str, str] = {
         "text). Verified everyday actions run without separate approval. Other supported actions wait for "
         "an explicit spoken approval on a voice request, or an on-device confirmation on a text request. "
         "No answer is not approval."),
+    "action.invalid_arguments": (
+        "INVALID_ARGUMENTS: phone_act {action} accepts only {allowed}. open_app needs the exact package; "
+        "find it with list_apps(query) first. click/input_text/scroll need snapshot and ref from the "
+        "latest phone_observe. Fix the arguments and retry; this is not an approval problem."),
     # Spoken/overlay status lines
     "status.accepted": "The agent is preparing an answer.",
     "status.phone": "Working on the phone while checking the screen.",
@@ -198,6 +202,10 @@ KO: dict[str, str] = {
         "전화는 kind=call/recipient, 메시지는 kind=message/recipient/content(전문)가 필요합니다. "
         "검증된 일상 동작은 별도 승인 없이 실행합니다. 그 외 지원되는 조작은 음성 요청이면 명시적 허용 발화를, "
         "일반 텍스트 요청이면 기기 확인을 기다립니다. 무응답은 승인되지 않습니다."),
+    "action.invalid_arguments": (
+        "INVALID_ARGUMENTS: phone_act {action}에는 {allowed}만 넣을 수 있습니다. open_app은 정확한 package가 "
+        "필요하니 먼저 list_apps(query)로 찾으세요. click/input_text/scroll은 최신 phone_observe의 snapshot과 "
+        "ref가 필요합니다. 인자를 고쳐 다시 시도하세요. 승인 문제가 아닙니다."),
     "status.accepted": "에이전트가 답변을 준비하고 있습니다.",
     "status.phone": "휴대폰 화면을 확인하며 작업하고 있습니다.",
     "status.research": "자료를 조회하고 있습니다.",

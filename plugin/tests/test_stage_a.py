@@ -161,7 +161,7 @@ class StageA(unittest.TestCase):
         for args in ({'action':'shell','text':'id'}, {'action':'click','ref':'n1'}, {'action':'home','url':'http://evil'}, {'action':'input_text','snapshot':'s','ref':'n1','text':False}):
             # Refused before any network call, by the confirmation guard or argument validation.
             error = self.call('phone_act',args)['error']
-            self.assertTrue(error == 'INVALID_ARGUMENTS' or error.startswith('PHONE_CONFIRMATION_REQUIRED'), error)
+            self.assertTrue(error.startswith(('INVALID_ARGUMENTS', 'PHONE_CONFIRMATION_REQUIRED')), error)
         self.assertEqual(Fixture.requests, [])
 
     def test_control_lock_identity_prevents_action(self):

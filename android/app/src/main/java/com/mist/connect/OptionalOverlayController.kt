@@ -108,6 +108,9 @@ internal class OptionalOverlayController(private val window: Window,
             s.waiting == ServiceUiPublication.Wait.NONE &&
             state.phase in setOf(UiPhase.PREPARING, UiPhase.WAKE_WAIT, UiPhase.CAPTURING,
                 UiPhase.SUBMITTING, UiPhase.WAITING_REPLY, UiPhase.PLAYING, UiPhase.FOLLOW_UP) &&
+            // Hands-free: the window belongs to a request. Back at wake-word waiting it closes,
+            // and the next wake word (CAPTURING) opens it again.
+            !(s.mode == ServiceUiPublication.Mode.HANDSFREE && state.phase == UiPhase.WAKE_WAIT) &&
             now >= state.observedAtMillis && now - state.observedAtMillis <= OBSERVATION_TTL_MS &&
             now >= s.sourceAtMillis && now - s.sourceAtMillis <= SOURCE_TTL_MS
         if (!admissible) { hide(); return }
@@ -131,13 +134,14 @@ internal class OptionalOverlayController(private val window: Window,
     private var manualRequest: VoiceOwnerStamp? = null
     private var manualStartedAt = 0L
 
-    /** Hands-free listening never times out, so the window closes only when listening is
-     * turned off. A manual request closes after its reply, at the latest at the request limit. */
+    /** Hands-free: the window closes when listening goes back to waiting for the wake word
+     * (after the reply and any follow-up). A manual request closes after its reply, at the
+     * latest at the request limit. */
     private fun closeHint(s: ServiceUiPublication.Snapshot, stamp: VoiceOwnerStamp, now: Long): String? =
         when (s.mode) {
             ServiceUiPublication.Mode.HANDSFREE -> {
                 manualRequest = null
-                AppText.get(R.string.overlay_close_listening, "듣기를 끄면 닫혀요")
+                AppText.get(R.string.overlay_close_wake, "호출 대기로 돌아가면 닫혀요")
             }
             ServiceUiPublication.Mode.MANUAL -> {
                 if (manualRequest?.let { sameGeneration(it, stamp) } != true) { manualRequest = stamp; manualStartedAt = now }

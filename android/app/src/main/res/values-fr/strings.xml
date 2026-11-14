@@ -291,7 +291,7 @@
     <string name="mcp_notif_title">Connexion du téléphone à Hermes</string>
     <string name="mcp_notif_text">Connexion sur l’appareil · lecture d’écran par accessibilité et actions approuvées</string>
     <string name="rt_followup">Continuez à parler · attente de 30 secondes</string>
-    <string name="overlay_close_listening">Se ferme quand l\'écoute est coupée</string>
+    <string name="overlay_close_wake">Se ferme au retour à l\'attente du mot d\'activation</string>
     <string name="overlay_close_reply">Se ferme après la réponse · max %1$s</string>
     <string name="rt_capturing">Écoute de votre demande · envoi automatique quand vous arrêtez de parler</string>
     <string name="rt_request_off">Demande vocale désactivée</string>

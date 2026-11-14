@@ -291,7 +291,7 @@
     <string name="mcp_notif_title">Hermes 手机连接</string>
     <string name="mcp_notif_text">设备内连接 · 无障碍读取屏幕与已批准的操作</string>
     <string name="rt_followup">请继续说 · 等待 30 秒</string>
-    <string name="overlay_close_listening">关闭聆听后关闭</string>
+    <string name="overlay_close_wake">回到等待唤醒词时关闭</string>
     <string name="overlay_close_reply">回复结束后关闭 · 最长 %1$s</string>
     <string name="rt_capturing">正在听取请求 · 说完后自动发送</string>
     <string name="rt_request_off">语音请求已关闭</string>

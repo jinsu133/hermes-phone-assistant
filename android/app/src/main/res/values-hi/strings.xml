@@ -291,7 +291,7 @@
     <string name="mcp_notif_title">Hermes फ़ोन कनेक्शन</string>
     <string name="mcp_notif_text">डिवाइस पर कनेक्शन · सुलभता से स्क्रीन पढ़ना और मंज़ूर कार्य</string>
     <string name="rt_followup">बोलते रहें · 30 सेकंड तक इंतज़ार</string>
-    <string name="overlay_close_listening">सुनना बंद करने पर बंद होगा</string>
+    <string name="overlay_close_wake">वेक वर्ड की प्रतीक्षा पर लौटते ही बंद होगा</string>
     <string name="overlay_close_reply">जवाब के बाद बंद होगा · अधिकतम %1$s</string>
     <string name="rt_capturing">आपका अनुरोध सुना जा रहा है · बोलना रुकते ही अपने आप भेजा जाएगा</string>
     <string name="rt_request_off">आवाज़ अनुरोध बंद</string>

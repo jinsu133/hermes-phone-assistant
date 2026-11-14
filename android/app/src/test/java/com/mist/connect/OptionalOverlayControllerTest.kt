@@ -37,10 +37,20 @@ class OptionalOverlayControllerTest {
         fun emit() { controller.offer(token, state()) }
         fun phase() { publisher.phase(scope, ServiceUiPublication.Phase.WAITING_REPLY); emit() }
     }
-    @Test fun handsfreeHintSaysListeningOffClosesIt() {
+    @Test fun handsfreeHintSaysWakeWaitClosesIt() {
         val r = Rig(); r.emit()
-        assertEquals("듣기를 끄면 닫혀요", r.window.hint)
+        assertEquals("호출 대기로 돌아가면 닫혀요", r.window.hint)
         r.publisher.off(r.scope, true); r.emit(); assertNull(r.window.hint)
+    }
+    @Test fun handsfreeClosesAtWakeWaitAndReopensOnNextRequest() {
+        val r = Rig()
+        fun event(e: ServiceUiPublication.CaptureEvent) { r.publisher.captureEvent(r.scope, e); r.emit() }
+        event(ServiceUiPublication.CaptureEvent.WAKE_WAIT); assertNull(r.window.text)
+        event(ServiceUiPublication.CaptureEvent.CAPTURING); assertNotNull(r.window.text)
+        r.phase(); assertNotNull(r.window.text)                       // waiting for the reply
+        event(ServiceUiPublication.CaptureEvent.FOLLOW_UP); assertNotNull(r.window.text)
+        event(ServiceUiPublication.CaptureEvent.WAKE_WAIT); assertNull(r.window.text)
+        assertEquals(1, r.window.maxWindows)
     }
     @Test fun manualHintCountsDownTheRequestLimit() {
         val r = Rig(ServiceUiPublication.Mode.MANUAL); r.emit()

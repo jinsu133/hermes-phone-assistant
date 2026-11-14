@@ -25,4 +25,4 @@ Command replies, spoken status lines and voice-turn guidance are English by defa
 
 ## Tests
 
-Run `hermes plugins validate` against this directory on a compatible Hermes installation. `tests/test_turn_admission.py` needs no Hermes installation and runs anywhere. Run the other tests in `tests/` on Termux, not Windows; Linux-only system calls used for safe file handling are not supported by Windows Python.
+Run `hermes plugins validate` against this directory on a compatible Hermes installation. `tests/test_turn_admission.py` needs no Hermes installation and runs anywhere. Run the whole suite on Termux, not Windows, from this directory with Hermes' Python: `python -m unittest discover -s tests`. Linux-only system calls used for safe file handling are not supported by Windows Python.

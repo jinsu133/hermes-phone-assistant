@@ -15,12 +15,24 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 ROOT = Path(__file__).resolve().parents[1]
 # Set isolation before ANY Hermes import; no active config, secrets or plugins.
 TEMP = tempfile.TemporaryDirectory(prefix='phone-stage-a-')
-os.environ['HERMES_HOME'] = TEMP.name
-os.environ.pop('HERMES_SAFE_MODE', None)
-os.environ.pop('HERMES_ENABLE_PROJECT_PLUGINS', None)
+# No active config, secrets or plugins: HERMES_HOME is set for this module's import of
+# Hermes and again (with restore) around the class, so other suites in the same
+# unittest-discover process do not leak into it or inherit it.
+ISOLATED_ENV = {'HERMES_HOME': TEMP.name, 'HERMES_SAFE_MODE': None, 'HERMES_ENABLE_PROJECT_PLUGINS': None}
+_SAVED_ENV = {key: os.environ.get(key) for key in ISOLATED_ENV}
+
+
+def _apply_env(values):
+    for key, value in values.items():
+        if value is None: os.environ.pop(key, None)
+        else: os.environ[key] = value
+
+
+_apply_env(ISOLATED_ENV)
 from hermes_cli.plugins import get_plugin_manager
 from tools.registry import registry
 from model_tools import handle_function_call
+_apply_env(_SAVED_ENV)
 
 PACKAGE = 'com.mist.connect.hermeslab'
 IDENTITY = '11111111-1111-4111-8111-111111111111'
@@ -75,6 +87,7 @@ class Fixture(BaseHTTPRequestHandler):
 class StageA(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        _apply_env(ISOLATED_ENV)
         cls.server = ThreadingHTTPServer(('127.0.0.1', 0), Fixture)
         cls.server.daemon_threads = True
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
@@ -82,8 +95,9 @@ class StageA(unittest.TestCase):
         cls.port = cls.server.server_port
         cls.connects = []
         cls.extra_loopback_ports = set()  # Test-owned ephemeral listeners only.
+        cls.guard_network = True  # an audit hook cannot be removed; it is disarmed in tearDownClass
         def audit(event, args):
-            if event == 'socket.connect':
+            if event == 'socket.connect' and cls.guard_network:
                 address = args[1]
                 if address != ('127.0.0.1', cls.port) and not (
                     address[0] == '127.0.0.1' and address[1] in cls.extra_loopback_ports
@@ -97,6 +111,8 @@ class StageA(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.server.shutdown(); cls.server.server_close(); cls.thread.join()
+        cls.guard_network = False
+        _apply_env(_SAVED_ENV)
 
     def setUp(self):
         Fixture.requests.clear(); self.connects.clear()

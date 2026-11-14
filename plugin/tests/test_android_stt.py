@@ -16,12 +16,23 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 ROOT = Path(__file__).resolve().parents[1]
 TMP = tempfile.TemporaryDirectory(prefix="android-stt-fixture-", dir=os.environ["TMPDIR"])
-os.environ["HOME"] = TMP.name
-os.environ["HERMES_HOME"] = TMP.name
-os.environ.pop("HERMES_SAFE_MODE", None)
+# Process-wide settings are applied only while this class runs (see setUpClass), so the
+# module can share one unittest-discover process with the other suites.
+ISOLATED_ENV = {"HOME": TMP.name, "HERMES_HOME": TMP.name, "HERMES_SAFE_MODE": None}
+_SAVED_ENV = {key: os.environ.get(key) for key in ISOLATED_ENV}
+
+
+def _apply_env(values):
+    for key, value in values.items():
+        if value is None: os.environ.pop(key, None)
+        else: os.environ[key] = value
+
+
+_apply_env(ISOLATED_ENV)  # also isolated while Hermes is imported
 from hermes_cli.plugins import PluginManager
 from agent.transcription_registry import get_provider
 from tools.transcription_tools import transcribe_audio
+_apply_env(_SAVED_ENV)
 
 IDENTITY = "11111111-1111-4111-8111-111111111111"
 TOKEN = "F" * 43 + "="
@@ -55,12 +66,14 @@ class Fixture(BaseHTTPRequestHandler):
 class AndroidSttContract(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
+        _apply_env(ISOLATED_ENV)
         cls.server = ThreadingHTTPServer(("127.0.0.1", 0), Fixture)
         cls.port = cls.server.server_port
         cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True); cls.thread.start()
         cls.connects = []
+        cls.guard_network = True  # an audit hook cannot be removed; it is disarmed in tearDownClass
         def audit(event, args):
-            if event == "socket.connect":
+            if event == "socket.connect" and cls.guard_network:
                 addr = args[1]
                 if not isinstance(addr, tuple) or addr != ("127.0.0.1", cls.port): raise RuntimeError("external_network_denied")
                 cls.connects.append(addr)
@@ -82,6 +95,8 @@ class AndroidSttContract(unittest.TestCase):
     @classmethod
     def tearDownClass(cls):
         cls.manager.unload(); cls.server.shutdown(); cls.server.server_close(); cls.thread.join(2)
+        cls.guard_network = False
+        _apply_env(_SAVED_ENV)
     def setUp(self):
         Fixture.mode = "ok"; Fixture.calls.clear()
     def test_registered_actual_dispatch(self):

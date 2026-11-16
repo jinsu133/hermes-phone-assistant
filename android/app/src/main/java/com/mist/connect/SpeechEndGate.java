@@ -10,6 +10,7 @@ public final class SpeechEndGate {
     public static final long MAX_HANGOVER_MS = 2000;
     public static final long MAX_UTTERANCE_MS = 30000;
     public static final long MAX_STALE_EVIDENCE_MS = 2800;
+    public static final double ENERGY_RMS = 450.0;
     private static final long RATE = 16000;
 
     public enum Decision { CONTINUE, COMPLETE, NO_SPEECH, AMBIGUOUS, SAFETY_LIMIT }
@@ -48,6 +49,9 @@ public final class SpeechEndGate {
     private String lastText = "";
     private boolean recognized, endpointPending;
     private Decision decision = Decision.CONTINUE;
+    // Diagnostic loudness figures only (block RMS); they never influence the decision.
+    private double recentRms, floorRms = -1, peakRms, tailSumSq;
+    private long tailSamples, firstProgressSample = -1, progressCount;
 
     public SpeechEndGate() { this(7000); }
     public SpeechEndGate(long initialSilenceMs) {
@@ -75,8 +79,13 @@ public final class SpeechEndGate {
         samples += count; // Sample clock avoids per-block rounding losses.
         long sum = 0;
         for (int i = 0; i < count; i++) sum += (long) pcm[i] * pcm[i];
-        boolean energy = (double) sum / count > 450.0 * 450.0;
+        boolean energy = (double) sum / count > ENERGY_RMS * ENERGY_RMS;
         if (energy) { energySamples += count; lastEnergySample = samples; }
+        double rms = Math.sqrt((double) sum / count);
+        recentRms = recentRms == 0 ? rms : recentRms * 0.8 + rms * 0.2;
+        peakRms = Math.max(peakRms, rms);
+        if (samples > RATE * 3 / 10) floorRms = floorRms < 0 ? recentRms : Math.min(floorRms, recentRms);
+        tailSumSq += (double) sum; tailSamples += count;
 
         // Empty, unknown-only and punctuation callbacks do not prolong capture.
         String text = evidence.text.length() <= 4096
@@ -88,6 +97,9 @@ public final class SpeechEndGate {
             recognized = true;
             lastProgressSample = samples;
             endpointPending = false; // Resumption cancels the old pending endpoint.
+            if (firstProgressSample < 0) firstProgressSample = samples;
+            progressCount++;
+            tailSumSq = 0; tailSamples = 0; // Loudness after the last word starts here.
         }
         if (meaningful) {
             lastText = text;
@@ -118,6 +130,24 @@ public final class SpeechEndGate {
             decision = Decision.SAFETY_LIMIT;
             throw new Rejected(decision);
         }
+    }
+
+    /** Numbers and flags only: no audio, transcript or token text. For logcat diagnosis. */
+    public String metrics() {
+        long ms = samples * 1000 / RATE;
+        return "elapsed_ms=" + ms
+            + " voiced_ms=" + voicedMs()
+            + " recognized=" + recognized
+            + " progress=" + progressCount
+            + " first_word_ms=" + (firstProgressSample < 0 ? -1 : firstProgressSample * 1000 / RATE)
+            + " quiet_ms=" + (energySamples == 0 ? -1 : (samples - lastEnergySample) * 1000 / RATE)
+            + " stale_ms=" + (recognized ? (samples - lastProgressSample) * 1000 / RATE : -1)
+            + " endpoint_pending=" + endpointPending
+            + " rms_threshold=" + Math.round(ENERGY_RMS)
+            + " rms_recent=" + Math.round(recentRms)
+            + " rms_floor=" + Math.round(Math.max(floorRms, 0))
+            + " rms_peak=" + Math.round(peakRms)
+            + " rms_after_last_word=" + (recognized && tailSamples > 0 ? Math.round(Math.sqrt(tailSumSq / tailSamples)) : -1);
     }
 
     /** Must be checked before exposing any collected PCM. */

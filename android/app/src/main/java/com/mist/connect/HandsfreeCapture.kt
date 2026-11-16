@@ -42,6 +42,7 @@ internal class HandsfreeCapture(
         var captureStartedAt = 0L
         var primary: Throwable? = null
         var endReason: CaptureEnd? = null // Recorded once in finally; metadata only.
+        var seedMs = 0L // Pre-roll after the wake word fed to the gate (diagnostic only).
         try {
             check(audio.state == AudioRecord.STATE_INITIALIZED)
             owning(audio)
@@ -91,6 +92,7 @@ internal class HandsfreeCapture(
                         val allowed = minOf(ringSize.toLong(), maxOf(0L, totalSamples-detector.wakeEndSample)).toInt()
                         val start=(ringPos-allowed+ring.size)%ring.size
                         for (i in 0 until allowed) { val v=ring[(start+i)%ring.size].toInt(); capture.write(v and 255); capture.write((v ushr 8) and 255) }
+                        seedMs = allowed * 1000L / 16000
                         if (allowed > 0) {
                             val seed = ShortArray(allowed) { ring[(start+it)%ring.size] }
                             try {
@@ -136,7 +138,13 @@ internal class HandsfreeCapture(
             endReason = CaptureEnd.of(error)
             throw error
         } finally {
-            VoiceDiagnostics.ends.captureEnded(CaptureEnd.settle(endReason, followup, triggered))
+            val settled = CaptureEnd.settle(endReason, followup, triggered)
+            VoiceDiagnostics.ends.captureEnded(settled)
+            // One line per capture, numbers only, so a real-use failure can be read from logcat.
+            if (triggered) try {
+                android.util.Log.i("VoiceEnd", "end=${settled.code} followup=$followup seed_ms=$seedMs " +
+                    "wall_ms=${android.os.SystemClock.elapsedRealtime() - captureStartedAt} ${end.metrics()}")
+            } catch (_: Throwable) { }
             val outcome = CaptureCleanup.release(
                 { if (audio.recordingState == AudioRecord.RECORDSTATE_RECORDING) audio.stop() },
                 null, { audio.release() })

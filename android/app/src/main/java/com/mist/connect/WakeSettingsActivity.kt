@@ -153,14 +153,19 @@ class WakeSettingsActivity : ComponentActivity() {
                         val pcm = trainer.record({ alive }) { v -> ui { level = v } }
                         if (pcm == null) {
                             val why = trainer.lastEnd ?: TrainEnd.NO_VOICE
+                            android.util.Log.i("VoiceTrain", "round=$round end=${why.code}")
                             VoiceDiagnostics.ends.trainEnded(why)
                             if (why == TrainEnd.CANCELLED) break
                             val text = getString(if (why == TrainEnd.NO_VOICE) R.string.ws_train_no_voice else R.string.ws_train_too_short)
                             lastProblem = text
                             ui { message = text }; Thread.sleep(900); continue
                         }
+                        val pcmMs = pcm.size * 1000L / 16000
                         val tokens = try { trainer.decode(pcm) } finally { pcm.fill(0) }
                         val why = KwsTokens.rejection(tokens, minTokens, vocab)
+                        // Counts only, never the tokens themselves.
+                        android.util.Log.i("VoiceTrain", "round=$round end=${(why ?: TrainEnd.LEARNED).code} " +
+                            "decoded=${tokens.size} kept=${KwsTokens.kept(tokens, vocab).size} min=$minTokens pcm_ms=${pcmMs}")
                         if (why != null) {
                             VoiceDiagnostics.ends.trainEnded(why)
                             // Counts only: how many usable sounds were heard versus needed.

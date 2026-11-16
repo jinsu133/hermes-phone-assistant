@@ -318,6 +318,7 @@
     <string name="rt_listen_error">Lỗi khi nghe: %1$s</string>
     <string name="rt_limit_reached">Yêu cầu đã chạm giới hạn ghi âm 30 giây nên không gửi gì. Hãy nói lại thành từng phần ngắn hơn.</string>
     <string name="rt_end_unconfirmed">Không xác định được lúc bạn nói xong nên không gửi gì. Hãy nói lại.</string>
+    <string name="rt_capture_not_sent">Đã nghe từ đánh thức nhưng không gửi gì (%1$s). Hãy gọi lại.</string>
     <string name="rt_recording_limit">Đang ghi âm · gửi trong vòng 30 giây · khi chạm giới hạn, toàn bộ bản ghi sẽ bị hủy.</string>
     <string name="rt_recording_secs">Đang ghi âm · %1$s giây · nhấn Gửi để kết thúc.</string>
     <string name="rt_record_failed">Không thể bắt đầu hoặc đọc bản ghi âm: %1$s</string>
@@ -449,6 +450,8 @@
     <string name="ws_train_prompt">Hãy nói “%1$s” ngay (%2$d/%3$d)</string>
     <string name="ws_train_heard">Đã học: %1$s</string>
     <string name="ws_train_too_short">Chưa nghe rõ. Hãy thử lại gần hơn một chút.</string>
+    <string name="ws_train_no_voice">Không nghe thấy giọng nói. Hãy nói gần micrô của điện thoại.</string>
+    <string name="ws_train_not_recognized">Đã nghe nhưng chưa đủ âm rõ cho từ đánh thức (%1$d trên %2$d cần có). Hãy nói lại chậm và rõ.</string>
     <string name="ws_learned_count">Cách phát âm đã học: %1$d</string>
     <string name="ws_reset_learned">Xóa giọng đã học</string>
     <string name="ws_needs_training">Hãy dạy “%1$s” bằng giọng của bạn trước khi lưu.</string>

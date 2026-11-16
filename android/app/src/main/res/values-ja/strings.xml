@@ -318,6 +318,7 @@
     <string name="rt_listen_error">聞き取りエラー: %1$s</string>
     <string name="rt_limit_reached">30秒の録音制限に達したため、録音全体を送信しませんでした。分けてもう一度話してください。</string>
     <string name="rt_end_unconfirmed">発話の終わりを確認できなかったため送信しませんでした。もう一度話してください。</string>
+    <string name="rt_capture_not_sent">呼びかけは聞こえましたが送信しませんでした (%1$s)。もう一度呼びかけてください。</string>
     <string name="rt_recording_limit">録音中 · 30秒以内に送信してください · 制限に達すると録音全体を破棄します。</string>
     <string name="rt_recording_secs">録音中 · %1$s秒 · 送信ボタンで終了します。</string>
     <string name="rt_record_failed">録音を開始または読み取れませんでした: %1$s</string>
@@ -449,6 +450,8 @@
     <string name="ws_train_prompt">「%1$s」と話してください（%2$d/%3$d）</string>
     <string name="ws_train_heard">学習しました: %1$s</string>
     <string name="ws_train_too_short">聞き取れませんでした。もう少し近くで話してください。</string>
+    <string name="ws_train_no_voice">声が聞こえませんでした。スマートフォンのマイクの近くで話してください。</string>
+    <string name="ws_train_not_recognized">聞こえましたが、呼びかけ語として使える音が足りません (%2$d 個中 %1$d 個)。ゆっくりはっきりもう一度話してください。</string>
     <string name="ws_learned_count">学習した発音: %1$d 件</string>
     <string name="ws_reset_learned">学習した声を消去</string>
     <string name="ws_needs_training">保存する前に「%1$s」を声で学習させてください。</string>

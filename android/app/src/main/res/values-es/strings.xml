@@ -318,6 +318,7 @@
     <string name="rt_listen_error">Error al escuchar: %1$s</string>
     <string name="rt_limit_reached">La solicitud alcanzó el límite de 30 segundos y no se envió nada. Dilo en partes más cortas.</string>
     <string name="rt_end_unconfirmed">No se detectó el final del habla y no se envió nada. Dilo otra vez.</string>
+    <string name="rt_capture_not_sent">Se oyó la palabra de activación, pero no se envió nada (%1$s). Vuelve a llamar.</string>
     <string name="rt_recording_limit">Grabando · envía antes de 30 segundos · al llegar al límite se descarta toda la grabación.</string>
     <string name="rt_recording_secs">Grabando · %1$s s · toca Enviar para terminar.</string>
     <string name="rt_record_failed">No se pudo iniciar ni leer la grabación: %1$s</string>
@@ -449,6 +450,8 @@
     <string name="ws_train_prompt">Di «%1$s» ahora (%2$d/%3$d)</string>
     <string name="ws_train_heard">Aprendido: %1$s</string>
     <string name="ws_train_too_short">No se entendió. Inténtalo de nuevo un poco más cerca.</string>
+    <string name="ws_train_no_voice">No se oyó ninguna voz. Habla cerca del micrófono del teléfono.</string>
+    <string name="ws_train_not_recognized">Se te oyó, pero faltan sonidos claros para la palabra de activación (%1$d de %2$d necesarios). Dilo otra vez despacio y con claridad.</string>
     <string name="ws_learned_count">Pronunciaciones aprendidas: %1$d</string>
     <string name="ws_reset_learned">Olvidar la voz aprendida</string>
     <string name="ws_needs_training">Enseña «%1$s» con tu voz antes de guardar.</string>

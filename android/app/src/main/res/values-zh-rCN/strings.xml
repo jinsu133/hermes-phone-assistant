@@ -318,6 +318,7 @@
     <string name="rt_listen_error">收听错误：%1$s</string>
     <string name="rt_limit_reached">请求达到 30 秒录音上限，整段录音未发送。请分段重新说。</string>
     <string name="rt_end_unconfirmed">无法确认说话结束，未发送。请再说一次。</string>
+    <string name="rt_capture_not_sent">听到了唤醒词，但未发送 (%1$s)。请再呼叫一次。</string>
     <string name="rt_recording_limit">录音中 · 请在 30 秒内发送 · 达到上限将丢弃整段录音。</string>
     <string name="rt_recording_secs">录音中 · %1$s 秒 · 点按“发送”结束。</string>
     <string name="rt_record_failed">无法开始或读取录音：%1$s</string>
@@ -449,6 +450,8 @@
     <string name="ws_train_prompt">现在请说“%1$s”（%2$d/%3$d）</string>
     <string name="ws_train_heard">已学习：%1$s</string>
     <string name="ws_train_too_short">没听清。请靠近一点再说一次。</string>
+    <string name="ws_train_no_voice">没有听到声音。请靠近手机麦克风说话。</string>
+    <string name="ws_train_not_recognized">听到了，但可用于唤醒词的清晰发音不够（%1$d 个，需要 %2$d 个）。请慢一点、清楚地再说一次。</string>
     <string name="ws_learned_count">已学习的发音：%1$d 个</string>
     <string name="ws_reset_learned">清除已学习的声音</string>
     <string name="ws_needs_training">保存前请先用声音学习“%1$s”。</string>

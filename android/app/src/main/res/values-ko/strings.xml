@@ -318,6 +318,7 @@
     <string name="rt_listen_error">듣기 오류: %1$s</string>
     <string name="rt_limit_reached">요청이 30초 녹음 제한에 도달해 전체 녹음을 전송하지 않았습니다. 나누어 다시 말해 주세요.</string>
     <string name="rt_end_unconfirmed">발화 종료를 확인하지 못해 전송하지 않았습니다. 다시 말해 주세요.</string>
+    <string name="rt_capture_not_sent">호출은 들었지만 전송하지 않았습니다 (%1$s) · 다시 호출해 주세요</string>
     <string name="rt_recording_limit">녹음 중 · 30초 전에 전송해 주세요 · 제한 도달 시 전체 녹음을 폐기합니다.</string>
     <string name="rt_recording_secs">녹음 중 · %1$s초 · 전송 버튼으로 마칩니다.</string>
     <string name="rt_record_failed">녹음을 시작하거나 읽지 못했습니다: %1$s</string>
@@ -449,6 +450,8 @@
     <string name="ws_train_prompt">지금 “%1$s”라고 말하세요 (%2$d/%3$d)</string>
     <string name="ws_train_heard">학습됨: %1$s</string>
     <string name="ws_train_too_short">잘 듣지 못했습니다. 조금 더 가까이에서 다시 말해 주세요.</string>
+    <string name="ws_train_no_voice">목소리가 들리지 않았습니다. 휴대폰 마이크 가까이에서 말해 주세요.</string>
+    <string name="ws_train_not_recognized">소리는 들렸지만 알아들은 발음이 부족합니다 (%1$d개 / %2$d개 필요). 천천히 또렷하게 다시 말해 주세요.</string>
     <string name="ws_learned_count">학습한 발음: %1$d개</string>
     <string name="ws_reset_learned">학습한 목소리 지우기</string>
     <string name="ws_needs_training">저장하기 전에 “%1$s”를 목소리로 학습시켜 주세요.</string>

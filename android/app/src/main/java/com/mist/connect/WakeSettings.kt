@@ -164,9 +164,21 @@ object KwsTokens {
     }
 
     /** Recognizer output to a storable keyword line, or null when too short to be distinctive. */
-    @JvmStatic fun learnedLine(tokens: List<String>, minTokens: Int, vocab: Set<String>): String? {
-        val kept = tokens.map { it.trim() }.filter { it.isNotEmpty() && it in vocab }
-        if (kept.size < minTokens || kept.size > 24 || !kept.first().startsWith("▁")) return null
-        return kept.joinToString(" ")
+    @JvmStatic fun learnedLine(tokens: List<String>, minTokens: Int, vocab: Set<String>): String? =
+        if (rejection(tokens, minTokens, vocab) != null) null else kept(tokens, vocab).joinToString(" ")
+
+    /** Valid tokens only; the count is safe to show, the tokens themselves are not logged. */
+    @JvmStatic fun kept(tokens: List<String>, vocab: Set<String>): List<String> =
+        tokens.map { it.trim() }.filter { it.isNotEmpty() && it in vocab }
+
+    /** Why learnedLine refuses these tokens, or null when it accepts them. */
+    @JvmStatic internal fun rejection(tokens: List<String>, minTokens: Int, vocab: Set<String>): TrainEnd? {
+        val kept = kept(tokens, vocab)
+        return when {
+            kept.size < minTokens -> TrainEnd.TOO_FEW_TOKENS
+            kept.size > 24 -> TrainEnd.TOO_MANY_TOKENS
+            !kept.first().startsWith("▁") -> TrainEnd.NO_WORD_START
+            else -> null
+        }
     }
 }

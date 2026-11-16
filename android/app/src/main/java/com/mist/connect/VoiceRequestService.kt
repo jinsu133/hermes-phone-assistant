@@ -439,6 +439,8 @@ class VoiceRequestService : Service() {
             check(VoiceBridgeClient.ready(token)) { "bridge_not_ready" }
             status = AppText.get(R.string.rt_wake_model, "로컬 호출어 모델 준비 중")
             var rejectedNotice: String? = null
+            // A wake that ended without upload in an earlier listening session is shown once.
+            VoiceDiagnostics.ends.takeUnshown()?.let { rejectedNotice = captureEndNotice(it) }
             HandsfreeCapture(applicationContext, { captureValid() },
                 { message ->
                     // Retain rejection feedback while returning to wake wait; the next
@@ -468,6 +470,7 @@ class VoiceRequestService : Service() {
                         if (!capture.cleanupConfirmed) throw rejected
                         status = captureRejectionStatus(rejected)
                         rejectedNotice = status
+                        VoiceDiagnostics.ends.takeUnshown() // Its own message is already shown.
                         ByteArray(0) // No upload, acceptance, STOP, or retained follow-up ticket.
                     } finally { playback.endListening(epoch, capture.cleanupConfirmed) }
                     followup = null
@@ -480,7 +483,11 @@ class VoiceRequestService : Service() {
                         status = AppText.get(R.string.rt_conversation_end, "대화 종료 · 호출어 대기로 돌아갑니다")
                         continue
                     }
-                    if (pcm.isEmpty()) continue
+                    if (pcm.isEmpty()) {
+                        // E.g. no speech after the wake word: say so instead of silently waiting.
+                        VoiceDiagnostics.ends.takeUnshown()?.let { status = captureEndNotice(it); rejectedNotice = status }
+                        continue
+                    }
                     if (!running.get()) { pcm.fill(0); break }
                     turnStopped.set(false)
                     McpService.actionsPaused = false
@@ -686,6 +693,9 @@ class VoiceRequestService : Service() {
         }
         return pcm
     }
+
+    private fun captureEndNotice(end: CaptureEnd): String = AppText.get(R.string.rt_capture_not_sent,
+        "호출 후 전송하지 않았습니다 (${end.code}) · 다시 호출해 주세요", end.code)
 
     private fun captureRejectionStatus(rejected: SpeechEndGate.Rejected): String = when (rejected.reason) {
         SpeechEndGate.Decision.SAFETY_LIMIT -> AppText.get(R.string.rt_limit_reached, "요청이 30초 녹음 제한에 도달해 전체 녹음을 전송하지 않았습니다. 나누어 다시 말해 주세요.")

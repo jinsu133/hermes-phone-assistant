@@ -318,6 +318,7 @@
     <string name="rt_listen_error">Erreur d’écoute : %1$s</string>
     <string name="rt_limit_reached">La demande a atteint la limite de 30 secondes, rien n’a été envoyé. Dites-la en plusieurs fois.</string>
     <string name="rt_end_unconfirmed">La fin de la parole n’a pas été détectée, rien n’a été envoyé. Répétez, s’il vous plaît.</string>
+    <string name="rt_capture_not_sent">Mot d’activation entendu, mais rien n’a été envoyé (%1$s). Rappelez, s’il vous plaît.</string>
     <string name="rt_recording_limit">Enregistrement · envoyez avant 30 secondes · à la limite, tout l’enregistrement est supprimé.</string>
     <string name="rt_recording_secs">Enregistrement · %1$s s · touchez Envoyer pour terminer.</string>
     <string name="rt_record_failed">Impossible de démarrer ou de lire l’enregistrement : %1$s</string>
@@ -449,6 +450,8 @@
     <string name="ws_train_prompt">Dites « %1$s » maintenant (%2$d/%3$d)</string>
     <string name="ws_train_heard">Appris : %1$s</string>
     <string name="ws_train_too_short">Je n’ai pas bien entendu. Réessayez un peu plus près.</string>
+    <string name="ws_train_no_voice">Aucune voix entendue. Parlez près du micro du téléphone.</string>
+    <string name="ws_train_not_recognized">Entendu, mais pas assez de sons clairs pour un mot d’activation (%1$d sur %2$d requis). Répétez lentement et clairement.</string>
     <string name="ws_learned_count">Prononciations apprises : %1$d</string>
     <string name="ws_reset_learned">Oublier la voix apprise</string>
     <string name="ws_needs_training">Apprenez « %1$s » avec votre voix avant d’enregistrer.</string>

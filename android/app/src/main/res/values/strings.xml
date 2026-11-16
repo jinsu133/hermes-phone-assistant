@@ -318,6 +318,7 @@
     <string name="rt_listen_error">Listening error: %1$s</string>
     <string name="rt_limit_reached">The request hit the 30-second recording limit, so nothing was sent. Please say it in shorter parts.</string>
     <string name="rt_end_unconfirmed">Couldn\'t detect the end of speech, so nothing was sent. Please say it again.</string>
+    <string name="rt_capture_not_sent">Wake word heard, but nothing was sent (%1$s). Please call again.</string>
     <string name="rt_recording_limit">Recording · send within 30 seconds · the whole recording is discarded at the limit.</string>
     <string name="rt_recording_secs">Recording · %1$s s · tap Send to finish.</string>
     <string name="rt_record_failed">Couldn\'t start or read the recording: %1$s</string>
@@ -449,6 +450,8 @@
     <string name="ws_train_prompt">Say “%1$s” now (%2$d/%3$d)</string>
     <string name="ws_train_heard">Learned: %1$s</string>
     <string name="ws_train_too_short">Didn’t catch that. Try again a little closer.</string>
+    <string name="ws_train_no_voice">No voice heard. Speak close to the phone’s microphone.</string>
+    <string name="ws_train_not_recognized">Heard you, but not enough clear sounds for a wake word (%1$d of %2$d needed). Say it again slowly and clearly.</string>
     <string name="ws_learned_count">Learned pronunciations: %1$d</string>
     <string name="ws_reset_learned">Forget learned voice</string>
     <string name="ws_needs_training">Teach “%1$s” with your voice before saving.</string>

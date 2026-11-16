@@ -36,6 +36,10 @@ internal class WakeTrainer(private val context: Context) : AutoCloseable {
      * Records one utterance: waits up to 5 s for speech, then stops after 0.7 s of quiet
      * or 3 s of speech. Returns null when nothing was said. Caller owns the microphone lease.
      */
+    /** Why the last record() returned null; metadata only. */
+    var lastEnd: TrainEnd? = null
+        private set
+
     @Suppress("MissingPermission")
     fun record(active: () -> Boolean, level: (Float) -> Unit): ShortArray? {
         val rate = 16000
@@ -43,6 +47,7 @@ internal class WakeTrainer(private val context: Context) : AutoCloseable {
         check(minimum > 0)
         val audio = AudioRecord(MediaRecorder.AudioSource.VOICE_RECOGNITION, rate,
             AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, maxOf(minimum, rate))
+        lastEnd = null
         try {
             check(audio.state == AudioRecord.STATE_INITIALIZED)
             audio.startRecording()
@@ -59,7 +64,7 @@ internal class WakeTrainer(private val context: Context) : AutoCloseable {
                     if (r < 0) error("read $r")
                     n += r
                 }
-                if (n < frame.size) return null
+                if (n < frame.size) { lastEnd = if (active()) TrainEnd.READ_SHORT else TrainEnd.CANCELLED; return null }
                 frames++
                 var sum = 0.0
                 for (s in frame) sum += s.toDouble() * s
@@ -70,14 +75,14 @@ internal class WakeTrainer(private val context: Context) : AutoCloseable {
                 if (started < 0) {
                     kept.add(frame.copyOf()); if (kept.size > 3) kept.removeAt(0).fill(0)
                     if (speech) started = frames
-                    else if (frames >= 50) return null
+                    else if (frames >= 50) { lastEnd = TrainEnd.NO_VOICE; return null }
                 } else {
                     kept.add(frame.copyOf())
                     quiet = if (speech) 0 else quiet + 1
                     if (quiet >= 7 || frames - started >= 30) break
                 }
             }
-            if (started < 0 || !active()) return null
+            if (started < 0 || !active()) { lastEnd = if (active()) TrainEnd.NO_VOICE else TrainEnd.CANCELLED; return null }
             val out = ShortArray(kept.sumOf { it.size })
             var at = 0
             for (k in kept) { k.copyInto(out, at); at += k.size; k.fill(0) }

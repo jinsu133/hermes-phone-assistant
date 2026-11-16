@@ -8,6 +8,7 @@ import org.json.JSONObject
 internal object VoiceDiagnostics {
     val wakes=AtomicLong(); val captures=AtomicLong(); val silences=AtomicLong(); val stops=AtomicLong(); val uploads=AtomicLong()
     val approvals=AtomicLong(); val approvalCaptures=AtomicLong(); val allowed=AtomicLong(); val denied=AtomicLong(); val resumed=AtomicLong()
+    val ends = EndCounters()
     private data class Failure(val stage: String, val type: String, val at: Long)
     private val firstFailure = AtomicReference<Failure?>()
     private val firstPlayback = AtomicReference<Failure?>()
@@ -73,6 +74,8 @@ internal object VoiceDiagnostics {
             .put("silent_captures",silences.get()).put("local_stops",stops.get()).put("uploads",uploads.get())
             .put("approval_prompts",approvals.get()).put("approval_captures",approvalCaptures.get())
             .put("voice_allowed",allowed.get()).put("voice_denied",denied.get()).put("actions_resumed",resumed.get())
+            .put("capture_end",JSONObject(ends.captureCounts())).put("last_capture_end",ends.lastCapture()?.code ?: "")
+            .put("train_end",JSONObject(ends.trainCounts())).put("last_train_end",ends.lastTrain()?.code ?: "")
             .put("phase",VoiceRequestService.status).put("listening",VoiceRequestService.handsfreeActive)
             .put("failure_stage",failure?.stage ?: "").put("failure_category",failure?.type ?: "")
             .put("failure_detail","").put("failure_at",failure?.at ?: 0L)

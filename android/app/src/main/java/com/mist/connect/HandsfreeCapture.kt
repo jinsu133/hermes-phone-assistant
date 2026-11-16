@@ -41,11 +41,12 @@ internal class HandsfreeCapture(
         var followupSpeechStarted = false
         var captureStartedAt = 0L
         var primary: Throwable? = null
+        var endReason: CaptureEnd? = null // Recorded once in finally; metadata only.
         try {
             check(audio.state == AudioRecord.STATE_INITIALIZED)
             owning(audio)
             if (!active()) return null
-            if (start != null) { if (!start { audio.startRecording() }) return null }
+            if (start != null) { if (!start { audio.startRecording() }) { endReason = CaptureEnd.START_REFUSED; return null } }
             else audio.startRecording()
             check(audio.recordingState == AudioRecord.RECORDSTATE_RECORDING)
             typedState(if (followup) ServiceUiPublication.CaptureEvent.FOLLOW_UP else ServiceUiPublication.CaptureEvent.WAKE_WAIT)
@@ -56,6 +57,7 @@ internal class HandsfreeCapture(
                 if (injected != null) {
                     typedState(ServiceUiPublication.CaptureEvent.CAPTURING)
                     VoiceDiagnostics.captures.incrementAndGet()
+                    endReason = CaptureEnd.INJECTED
                     return injected
                 }
                 if (triggered) end.checkWallTime(android.os.SystemClock.elapsedRealtime() - captureStartedAt)
@@ -93,7 +95,7 @@ internal class HandsfreeCapture(
                             val seed = ShortArray(allowed) { ring[(start+it)%ring.size] }
                             try {
                                 detector.acceptStop(seed, allowed)
-                                if (detector.stopped) { VoiceDiagnostics.stops.incrementAndGet(); wasStopped = true; return ByteArray(0) }
+                                if (detector.stopped) { VoiceDiagnostics.stops.incrementAndGet(); wasStopped = true; endReason = CaptureEnd.STOP_WORD; return ByteArray(0) }
                                 end.accept(seed, allowed, detector.endpointEvidence)
                             } finally { seed.fill(0) }
                         }
@@ -101,7 +103,7 @@ internal class HandsfreeCapture(
                     }
                 } else {
                     detector.acceptStop(block,n)
-                    if (detector.stopped) { VoiceDiagnostics.stops.incrementAndGet(); wasStopped = true; return ByteArray(0) }
+                    if (detector.stopped) { VoiceDiagnostics.stops.incrementAndGet(); wasStopped = true; endReason = CaptureEnd.STOP_WORD; return ByteArray(0) }
                     val finished = end.accept(block,n,detector.endpointEvidence)
                     if (followup && !followupSpeechStarted && end.hasSpeech()) {
                         val first = (ringPos-ringSize+ring.size)%ring.size
@@ -122,8 +124,8 @@ internal class HandsfreeCapture(
                     end.checkWallTime(android.os.SystemClock.elapsedRealtime() - captureStartedAt)
                     if (finished) {
                         end.requireCompleteOrEmpty()
-                        if(end.decision() == SpeechEndGate.Decision.COMPLETE) { VoiceDiagnostics.captures.incrementAndGet(); return capture.toByteArray() }
-                        VoiceDiagnostics.silences.incrementAndGet(); return ByteArray(0)
+                        if(end.decision() == SpeechEndGate.Decision.COMPLETE) { VoiceDiagnostics.captures.incrementAndGet(); endReason = CaptureEnd.COMPLETE; return capture.toByteArray() }
+                        VoiceDiagnostics.silences.incrementAndGet(); endReason = CaptureEnd.NO_SPEECH; return ByteArray(0)
                     }
                 }
                 block.fill(0)
@@ -131,8 +133,10 @@ internal class HandsfreeCapture(
             return null
         } catch (error: Throwable) {
             primary = error
+            endReason = CaptureEnd.of(error)
             throw error
         } finally {
+            VoiceDiagnostics.ends.captureEnded(CaptureEnd.settle(endReason, followup, triggered))
             val outcome = CaptureCleanup.release(
                 { if (audio.recordingState == AudioRecord.RECORDSTATE_RECORDING) audio.stop() },
                 null, { audio.release() })

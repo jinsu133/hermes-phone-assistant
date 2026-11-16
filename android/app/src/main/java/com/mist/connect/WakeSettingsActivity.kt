@@ -143,6 +143,7 @@ class WakeSettingsActivity : ComponentActivity() {
         training = kind
         Thread({
             val found = mutableListOf<String>()
+            var lastProblem: String? = null
             try {
                 val vocab = WakeSettings.vocab(applicationContext)
                 WakeTrainer(applicationContext).use { trainer ->
@@ -150,9 +151,25 @@ class WakeSettingsActivity : ComponentActivity() {
                         if (!alive) break
                         ui { message = getString(R.string.ws_train_prompt, phrase, round, 3) }
                         val pcm = trainer.record({ alive }) { v -> ui { level = v } }
-                        if (pcm == null) { ui { message = getString(R.string.ws_train_too_short) }; Thread.sleep(900); continue }
-                        val line = KwsTokens.learnedLine(trainer.decode(pcm), minTokens, vocab)
-                        if (line == null) { ui { message = getString(R.string.ws_train_too_short) }; Thread.sleep(900); continue }
+                        if (pcm == null) {
+                            val why = trainer.lastEnd ?: TrainEnd.NO_VOICE
+                            VoiceDiagnostics.ends.trainEnded(why)
+                            if (why == TrainEnd.CANCELLED) break
+                            val text = getString(if (why == TrainEnd.NO_VOICE) R.string.ws_train_no_voice else R.string.ws_train_too_short)
+                            lastProblem = text
+                            ui { message = text }; Thread.sleep(900); continue
+                        }
+                        val tokens = try { trainer.decode(pcm) } finally { pcm.fill(0) }
+                        val why = KwsTokens.rejection(tokens, minTokens, vocab)
+                        if (why != null) {
+                            VoiceDiagnostics.ends.trainEnded(why)
+                            // Counts only: how many usable sounds were heard versus needed.
+                            val text = getString(R.string.ws_train_not_recognized, KwsTokens.kept(tokens, vocab).size, minTokens)
+                            lastProblem = text
+                            ui { message = text }; Thread.sleep(1400); continue
+                        }
+                        VoiceDiagnostics.ends.trainEnded(TrainEnd.LEARNED)
+                        val line = checkNotNull(KwsTokens.learnedLine(tokens, minTokens, vocab))
                         found += line
                         ui { message = getString(R.string.ws_train_heard, WakeSettings.readable(line)) }
                         Thread.sleep(700)
@@ -164,7 +181,7 @@ class WakeSettingsActivity : ComponentActivity() {
                         else learnedStop = (learnedStop + found).distinct().takeLast(WakeSettings.MAX_LEARNED)
                     }
                     val total = if (kind == WakeSettings.Kind.WAKE) learnedWake.size else learnedStop.size
-                    message = if (found.isEmpty()) getString(R.string.ws_train_too_short)
+                    message = if (found.isEmpty()) lastProblem ?: getString(R.string.ws_train_too_short)
                         else getString(R.string.ws_learned_count, total)
                 }
             } catch (e: Throwable) {

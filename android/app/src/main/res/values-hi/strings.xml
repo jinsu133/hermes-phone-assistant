@@ -318,6 +318,7 @@
     <string name="rt_listen_error">सुनने में त्रुटि: %1$s</string>
     <string name="rt_limit_reached">अनुरोध 30 सेकंड की रिकॉर्डिंग सीमा तक पहुँच गया, इसलिए कुछ नहीं भेजा गया। छोटे हिस्सों में फिर से बोलें।</string>
     <string name="rt_end_unconfirmed">बोलना कब खत्म हुआ यह पता नहीं चला, इसलिए कुछ नहीं भेजा गया। कृपया फिर से बोलें।</string>
+    <string name="rt_capture_not_sent">वेक वर्ड सुना गया, पर कुछ नहीं भेजा गया (%1$s)। कृपया फिर से बुलाएँ।</string>
     <string name="rt_recording_limit">रिकॉर्डिंग जारी · 30 सेकंड के अंदर भेजें · सीमा पर पूरी रिकॉर्डिंग हटा दी जाती है।</string>
     <string name="rt_recording_secs">रिकॉर्डिंग जारी · %1$s से. · खत्म करने के लिए भेजें पर टैप करें।</string>
     <string name="rt_record_failed">रिकॉर्डिंग शुरू या पढ़ी नहीं जा सकी: %1$s</string>
@@ -449,6 +450,8 @@
     <string name="ws_train_prompt">अब “%1$s” बोलें (%2$d/%3$d)</string>
     <string name="ws_train_heard">सीखा गया: %1$s</string>
     <string name="ws_train_too_short">ठीक से सुनाई नहीं दिया। थोड़ा पास आकर फिर कोशिश करें।</string>
+    <string name="ws_train_no_voice">कोई आवाज़ नहीं सुनाई दी। फ़ोन के माइक के पास बोलें।</string>
+    <string name="ws_train_not_recognized">आवाज़ सुनाई दी, पर वेक वर्ड के लिए पर्याप्त साफ़ ध्वनियाँ नहीं मिलीं (%2$d में से %1$d)। धीरे और साफ़ फिर से बोलें।</string>
     <string name="ws_learned_count">सीखे गए उच्चारण: %1$d</string>
     <string name="ws_reset_learned">सीखी गई आवाज़ भूलें</string>
     <string name="ws_needs_training">सेव करने से पहले “%1$s” को अपनी आवाज़ से सिखाएँ।</string>

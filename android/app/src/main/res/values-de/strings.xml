@@ -318,6 +318,7 @@
     <string name="rt_listen_error">Fehler beim Zuhören: %1$s</string>
     <string name="rt_limit_reached">Die Anfrage hat das 30-Sekunden-Limit erreicht, es wurde nichts gesendet. Bitte in kürzeren Teilen sprechen.</string>
     <string name="rt_end_unconfirmed">Das Ende der Sprache wurde nicht erkannt, es wurde nichts gesendet. Bitte noch einmal sprechen.</string>
+    <string name="rt_capture_not_sent">Aktivierungswort erkannt, aber nichts gesendet (%1$s). Bitte erneut rufen.</string>
     <string name="rt_recording_limit">Aufnahme · innerhalb von 30 Sekunden senden · beim Limit wird die gesamte Aufnahme verworfen.</string>
     <string name="rt_recording_secs">Aufnahme · %1$s s · zum Beenden auf Senden tippen.</string>
     <string name="rt_record_failed">Aufnahme konnte nicht gestartet oder gelesen werden: %1$s</string>
@@ -449,6 +450,8 @@
     <string name="ws_train_prompt">Sag jetzt „%1$s“ (%2$d/%3$d)</string>
     <string name="ws_train_heard">Gelernt: %1$s</string>
     <string name="ws_train_too_short">Nicht verstanden. Versuche es etwas näher noch einmal.</string>
+    <string name="ws_train_no_voice">Keine Stimme gehört. Sprich nah am Mikrofon des Telefons.</string>
+    <string name="ws_train_not_recognized">Gehört, aber zu wenige klare Laute für ein Aktivierungswort (%1$d von %2$d nötig). Sag es langsam und deutlich noch einmal.</string>
     <string name="ws_learned_count">Gelernte Aussprachen: %1$d</string>
     <string name="ws_reset_learned">Gelernte Stimme löschen</string>
     <string name="ws_needs_training">Bring „%1$s“ vor dem Speichern mit deiner Stimme bei.</string>

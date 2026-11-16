@@ -318,6 +318,7 @@
     <string name="rt_listen_error">ข้อผิดพลาดในการฟัง: %1$s</string>
     <string name="rt_limit_reached">คำขอถึงขีดจำกัดการบันทึก 30 วินาที จึงไม่ได้ส่งอะไร โปรดพูดเป็นช่วงสั้นลง</string>
     <string name="rt_end_unconfirmed">ตรวจไม่พบว่าพูดจบเมื่อใด จึงไม่ได้ส่งอะไร โปรดพูดอีกครั้ง</string>
+    <string name="rt_capture_not_sent">ได้ยินคำปลุกแล้ว แต่ไม่ได้ส่งอะไร (%1$s) โปรดเรียกอีกครั้ง</string>
     <string name="rt_recording_limit">กำลังบันทึก · ส่งภายใน 30 วินาที · เมื่อถึงขีดจำกัดจะทิ้งเสียงที่บันทึกทั้งหมด</string>
     <string name="rt_recording_secs">กำลังบันทึก · %1$s วินาที · แตะส่งเพื่อจบ</string>
     <string name="rt_record_failed">เริ่มหรืออ่านการบันทึกไม่ได้: %1$s</string>
@@ -449,6 +450,8 @@
     <string name="ws_train_prompt">พูดว่า “%1$s” ตอนนี้ (%2$d/%3$d)</string>
     <string name="ws_train_heard">เรียนรู้แล้ว: %1$s</string>
     <string name="ws_train_too_short">ฟังไม่ชัด ลองอีกครั้งใกล้ขึ้นเล็กน้อย</string>
+    <string name="ws_train_no_voice">ไม่ได้ยินเสียง โปรดพูดใกล้ไมโครโฟนของโทรศัพท์</string>
+    <string name="ws_train_not_recognized">ได้ยินแล้ว แต่เสียงที่ชัดพอสำหรับคำปลุกยังไม่พอ (%1$d จาก %2$d ที่ต้องการ) โปรดพูดช้าๆ และชัดๆ อีกครั้ง</string>
     <string name="ws_learned_count">การออกเสียงที่เรียนรู้: %1$d</string>
     <string name="ws_reset_learned">ลบเสียงที่เรียนรู้</string>
     <string name="ws_needs_training">สอน “%1$s” ด้วยเสียงของคุณก่อนบันทึก</string>

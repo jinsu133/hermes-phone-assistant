@@ -318,6 +318,7 @@
     <string name="rt_listen_error">Kesalahan mendengarkan: %1$s</string>
     <string name="rt_limit_reached">Permintaan mencapai batas rekaman 30 detik sehingga tidak ada yang dikirim. Ucapkan dalam bagian yang lebih pendek.</string>
     <string name="rt_end_unconfirmed">Akhir ucapan tidak terdeteksi sehingga tidak ada yang dikirim. Silakan ucapkan lagi.</string>
+    <string name="rt_capture_not_sent">Kata pemicu terdengar, tetapi tidak ada yang dikirim (%1$s). Silakan panggil lagi.</string>
     <string name="rt_recording_limit">Merekam · kirim dalam 30 detik · seluruh rekaman dibuang jika batas tercapai.</string>
     <string name="rt_recording_secs">Merekam · %1$s dtk · ketuk Kirim untuk selesai.</string>
     <string name="rt_record_failed">Tidak dapat memulai atau membaca rekaman: %1$s</string>
@@ -449,6 +450,8 @@
     <string name="ws_train_prompt">Ucapkan “%1$s” sekarang (%2$d/%3$d)</string>
     <string name="ws_train_heard">Dipelajari: %1$s</string>
     <string name="ws_train_too_short">Tidak terdengar jelas. Coba lagi sedikit lebih dekat.</string>
+    <string name="ws_train_no_voice">Tidak ada suara terdengar. Bicaralah dekat mikrofon ponsel.</string>
+    <string name="ws_train_not_recognized">Terdengar, tetapi bunyi jelas untuk kata pemicu kurang (%1$d dari %2$d yang dibutuhkan). Ucapkan lagi perlahan dan jelas.</string>
     <string name="ws_learned_count">Pelafalan yang dipelajari: %1$d</string>
     <string name="ws_reset_learned">Hapus suara yang dipelajari</string>
     <string name="ws_needs_training">Ajarkan “%1$s” dengan suara Anda sebelum menyimpan.</string>

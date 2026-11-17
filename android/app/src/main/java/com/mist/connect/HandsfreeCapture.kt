@@ -18,7 +18,7 @@ internal class HandsfreeCapture(
         private set
     var wasStopped = false
         private set
-    fun nextRequest(followup: Boolean = false, start: ((() -> Unit) -> Boolean)? = null): ByteArray? {
+    fun nextRequest(followup: Boolean = false, waitText: String? = null, start: ((() -> Unit) -> Boolean)? = null): ByteArray? {
         wasStopped = false
         detector.reset()
         detector.prepareStop() // Load before opening the microphone, never mid-command.
@@ -52,7 +52,7 @@ internal class HandsfreeCapture(
             check(audio.recordingState == AudioRecord.RECORDSTATE_RECORDING)
             typedState(if (followup) ServiceUiPublication.CaptureEvent.FOLLOW_UP else ServiceUiPublication.CaptureEvent.WAKE_WAIT)
             if (triggered) captureStartedAt = android.os.SystemClock.elapsedRealtime()
-            state(if (followup) AppText.get(R.string.rt_followup, "이어 말하세요 · 30초 동안 기다립니다") else AppText.wakeWait())
+            state(waitText ?: if (followup) AppText.get(R.string.rt_followup, "이어 말하세요 · 30초 동안 기다립니다") else AppText.wakeWait())
             while (active()) {
                 val injected = InjectedUtterance.take() // debug harness only; always null in release
                 if (injected != null) {

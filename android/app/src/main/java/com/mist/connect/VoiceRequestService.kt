@@ -1083,7 +1083,7 @@ class VoiceRequestService : Service() {
             check(active() && armed.optString("digest")==pending.digest) { "confirmation_cancelled" }
             status=AppText.get(R.string.rt_say_allow, "허용 문구를 말씀해 주세요 · 다른 응답에는 실행하지 않습니다")
             val pcm = try {
-                capture.nextRequest(true) { start -> listen(ticket,
+                capture.nextRequest(true, status) { start -> listen(ticket,
                     { captureValid() && active() && ticket.request == playbackRequestScope && ticket.consent == consentRevision.get() }, start) }
             } catch (rejected: SpeechEndGate.Rejected) {
                 if (!capture.cleanupConfirmed) throw rejected
@@ -1196,12 +1196,20 @@ class VoiceRequestService : Service() {
     }
 
     /** IO worker only; an ACK is scoped and must confirm cleanup, not merely HTTP 200. */
-    private fun cancelRemote(token: String, scope: ScopedVoiceCancellation.Scope?, displaySession: ServiceUiPublication.Scope = uiScope): Boolean {
+    private fun cancelRemote(token: String, scope: ScopedVoiceCancellation.Scope?, displaySession: ServiceUiPublication.Scope = uiScope,
+                             awaitSettlement: Boolean = false): Boolean {
         if (scope == null) return !cancellation.blocked()
         val displayScope = ServiceUiPublication.Scope(displaySession.generation, scope.ingressOperationId)
         var confirmed = false
         try {
-            VoiceBridgeClient.cancelTurn(token, scope)
+            // A spoken STOP lands while the accepted run is still unwinding (e.g. a phone action
+            // waiting for approval). One /cancel then reports cleanup_confirmed=false, which
+            // blocked the service and turned listening OFF. Send the same single /cancel and
+            // poll the read-only exact-run status (bounded 8 s); UNKNOWN or timeout still blocks.
+            if (awaitSettlement && scope.requestId != null) {
+                if (!VoiceBridgeClient.cancelAndAwaitCleanup(token, scope))
+                    throw VoiceBridgeClient.BridgeException("cancel_cleanup_unconfirmed")
+            } else VoiceBridgeClient.cancelTurn(token, scope)
             confirmed = true
         } catch (error: Exception) {
             playback.serviceFailure(SourceServicePlaybackAdapter.ServiceStage.REQUEST, error)
@@ -1336,7 +1344,7 @@ class VoiceRequestService : Service() {
         connection?.disconnect()
         progressConnection?.disconnect()
         val localClean = quiescePlayback(true)
-        val remoteClean = cancelRemote(token, scope)
+        val remoteClean = cancelRemote(token, scope, awaitSettlement = true)
         check(localClean && remoteClean) { "cancel_cleanup_unconfirmed" }
         status = AppText.get(R.string.rt_stop, "스탑 · 요청 권한과 재생을 중단하고 호출어 대기로 돌아갑니다")
     }

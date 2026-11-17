@@ -1,7 +1,7 @@
 name: hermes-phone-control
 version: "0.24.3"
 description: "Voice-driven control of a paired Android phone through Hermes: spoken requests run through the existing conversation, permitted accessibility actions are executed and re-observed, and the verified result is spoken back. Android/Termux companion app required; same-device loopback transport only."
-author: ko_spell
+author: jinsu133, dot-work
 kind: standalone
 requires_hermes: ">=0.21.4"
 platforms:

@@ -11,6 +11,8 @@ public final class SpeechEndGate {
     public static final long MAX_UTTERANCE_MS = 30000;
     public static final long MAX_STALE_EVIDENCE_MS = 2800;
     public static final double ENERGY_RMS = 450.0;
+    /** A quiet gap this long before loud audio marks a new onset (a resumed utterance). */
+    public static final long ONSET_GAP_MS = 300;
     private static final long RATE = 16000;
 
     public enum Decision { CONTINUE, COMPLETE, NO_SPEECH, AMBIGUOUS, SAFETY_LIMIT }
@@ -44,7 +46,7 @@ public final class SpeechEndGate {
 
     private final long initialSilenceMs;
     private final long maxCaptureMs;
-    private long samples, energySamples, lastEnergySample, lastProgressSample;
+    private long samples, energySamples, lastEnergySample, lastProgressSample, onsetSample = -1;
     private long lastWordEnd = -1;
     private String lastText = "";
     private boolean recognized, endpointPending;
@@ -80,7 +82,14 @@ public final class SpeechEndGate {
         long sum = 0;
         for (int i = 0; i < count; i++) sum += (long) pcm[i] * pcm[i];
         boolean energy = (double) sum / count > ENERGY_RMS * ENERGY_RMS;
-        if (energy) { energySamples += count; lastEnergySample = samples; }
+        if (energy) {
+            long blockStart = samples - count;
+            // Loud audio after a quiet gap is a new onset: the recognizer gets a fresh
+            // stale window for it. Continuous loudness keeps its original onset.
+            if (energySamples == 0 || blockStart - lastEnergySample >= ONSET_GAP_MS * RATE / 1000)
+                onsetSample = blockStart;
+            energySamples += count; lastEnergySample = samples;
+        }
         double rms = Math.sqrt((double) sum / count);
         recentRms = recentRms == 0 ? rms : recentRms * 0.8 + rms * 0.2;
         peakRms = Math.max(peakRms, rms);
@@ -114,10 +123,15 @@ public final class SpeechEndGate {
         } else {
             long quiet = (samples - lastEnergySample) * 1000 / RATE;
             long stale = (samples - lastProgressSample) * 1000 / RATE;
+            // The recognizer reports words seconds late, and the wake word's own tail can
+            // yield an early word. A pause followed by new speech must not be rejected on
+            // that old word's clock. Count loud audio only, from the later of last word and
+            // loud onset: a quiet tail is the endpoint, not missed speech.
+            long loudStale = Math.max(0, lastEnergySample - Math.max(lastProgressSample, onsetSample)) * 1000 / RATE;
             if (quiet >= hangoverMs() && stale >= hangoverMs()) decision = Decision.COMPLETE;
             // Loud stale hypotheses may be noise OR missed continuing speech. Bounded
             // rejection is safer than treating either RMS or a decoder final as proof.
-            else if (stale >= MAX_STALE_EVIDENCE_MS) decision = Decision.AMBIGUOUS;
+            else if (quiet < hangoverMs() && loudStale >= MAX_STALE_EVIDENCE_MS) decision = Decision.AMBIGUOUS;
         }
         return decision != Decision.CONTINUE;
     }
@@ -142,6 +156,7 @@ public final class SpeechEndGate {
             + " first_word_ms=" + (firstProgressSample < 0 ? -1 : firstProgressSample * 1000 / RATE)
             + " quiet_ms=" + (energySamples == 0 ? -1 : (samples - lastEnergySample) * 1000 / RATE)
             + " stale_ms=" + (recognized ? (samples - lastProgressSample) * 1000 / RATE : -1)
+            + " onset_ms=" + (onsetSample < 0 ? -1 : onsetSample * 1000 / RATE)
             + " endpoint_pending=" + endpointPending
             + " rms_threshold=" + Math.round(ENERGY_RMS)
             + " rms_recent=" + Math.round(recentRms)

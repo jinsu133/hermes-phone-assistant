@@ -502,7 +502,15 @@ class VoiceRequestService : Service() {
                         catch (error: Exception) {
                             playback.serviceFailure(SourceServicePlaybackAdapter.ServiceStage.REQUEST, error)
                             uiPublication.blocked(uiPublication.requestScope(), ServiceUiPublication.Blocker.REQUEST_FAILED)
-                            if (running.get() && !turnStopped.get()) status = AppText.get(R.string.rt_request_failed_retry, "요청 실패: ${safeCategory(error)} · 다시 호출해 주세요", safeCategory(error))
+                            // Fixed protocol category only (never transcript, token or reply text).
+                            try { Log.w("VoiceRequest", "request failed category=" +
+                                ((error as? VoiceBridgeClient.BridgeException)?.category ?: error.javaClass.simpleName)) } catch (_: Throwable) { }
+                            if (running.get() && !turnStopped.get()) {
+                                status = AppText.get(R.string.rt_request_failed_retry, "요청 실패: ${safeCategory(error)} · 다시 호출해 주세요", safeCategory(error))
+                                // Keep it visible through the return to wake wait; otherwise the
+                                // failure is overwritten at once and the user sees and hears nothing.
+                                rejectedNotice = status
+                            }
                         }
                         finally {
                             // Content-done releases the monitor loop. It is NOT a played ticket.

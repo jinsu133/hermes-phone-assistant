@@ -43,6 +43,8 @@ class McpService : Service() {
 
     private fun transcribeNativeStt(data: ByteArray,
                                     options: AndroidSttInputOptions = AndroidSttInputOptions.LEGACY): JSONObject {
+        // A follow-up capture the phone already transcribed (same bytes, seconds ago).
+        SttPrecheck.take(data, android.os.SystemClock.elapsedRealtime())?.let { return it }
         val request = synchronized(nativeSttLock) {
             if (!running || instance !== this) return nativeSttFailure("stt_cancelled")
             if (nativeSttRequest != null) return nativeSttFailure("stt_busy")

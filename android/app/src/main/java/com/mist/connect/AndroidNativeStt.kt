@@ -24,6 +24,9 @@ import java.util.concurrent.atomic.AtomicReference
 /** Offline-only recognition of supplied 16kHz mono PCM. Never owns a microphone. */
 internal object AndroidNativeStt {
     const val MAX_PCM = 16000 * 2 * 30
+    private const val HOLD_MIN_MS = 600L
+    private const val HOLD_QUIET_MS = 800L
+    private const val HOLD_MAX_MS = 3500L
     private val busy = AtomicBoolean(false)
     private val main = Handler(Looper.getMainLooper())
 
@@ -37,6 +40,7 @@ internal object AndroidNativeStt {
                    options: AndroidSttInputOptions): JSONObject =
         transcribeRequest(context, pcm, request, false, options.mode(), options).also {
             if (options.mode() != null) it.put("stt_input_mode", AndroidSttInputOptions.WIRE_MODE)
+            else if (!options.drainHold()) it.put("stt_input_mode", AndroidSttInputOptions.WIRE_UNPACED_CLOSE)
         }
 
     fun transcribeDiagnosed(context: Context, pcm: ByteArray, request: AndroidSttRequest): JSONObject =
@@ -129,6 +133,7 @@ internal object AndroidNativeStt {
         var recognizer: SpeechRecognizer? = null // main-thread owned
         val writer = AtomicReference<Thread?>()
         val writerReserved = AtomicBoolean(false)
+        val lastSegmentAt = java.util.concurrent.atomic.AtomicLong(0)
         val pipes = try { ParcelFileDescriptor.createPipe() }
         catch (_: Exception) { busy.set(false); return rejected("stt_pipe_unavailable", Terminal.PIPE_UNAVAILABLE) }
         observe(trace) { it.admitted() }
@@ -188,6 +193,7 @@ internal object AndroidNativeStt {
                     override fun onEvent(eventType: Int, params: Bundle?) { observe(trace) { it.event(Kind.CB_EVENT, eventType.toLong(), 0, completion.isTerminal()) } }
                     override fun onSegmentResults(segmentResults: Bundle) {
                         observe(trace) { it.event(Kind.CB_SEGMENT, 1, text(segmentResults).length.toLong(), completion.isTerminal()) }
+                        lastSegmentAt.set(android.os.SystemClock.elapsedRealtime())
                         val value = text(segmentResults)
                         if (!active()) cancel()
                         else if (!completion.segment(value, value.isNotBlank()))
@@ -259,6 +265,22 @@ internal object AndroidNativeStt {
                                                 observe(trace) { it.supplied(count) }
                                             }
                                             suppliedAll = offset == pcm.size
+                                            // Keep the input open while segments are still being decoded;
+                                            // EOF ends the segmented session and drops undecoded ones.
+                                            if (suppliedAll && pacer == null && options.drainHold()) {
+                                                // The decoder may still be warming up when the last write returns,
+                                                // so quiet only counts once a segment has arrived (bounded by max).
+                                                val holdStart = android.os.SystemClock.elapsedRealtime()
+                                                val holdMin = maxOf(HOLD_MIN_MS, pcm.size / 32L / 3L)
+                                                while (active() && !completion.isTerminal()) {
+                                                    val now = android.os.SystemClock.elapsedRealtime()
+                                                    val segmentAt = lastSegmentAt.get()
+                                                    if (now - holdStart >= HOLD_MAX_MS) break
+                                                    if (segmentAt > 0L && now - holdStart >= holdMin
+                                                        && now - maxOf(holdStart, segmentAt) >= HOLD_QUIET_MS) break
+                                                    Thread.sleep(50)
+                                                }
+                                            }
                                         }
                                         completion.normalClose()
                                         if (suppliedAll) observe(trace) { it.writerEof() }

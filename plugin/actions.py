@@ -10,6 +10,7 @@ FIELDS = {
     "list_apps": ({"action", "query"}, {"action"}),
     "package_version": ({"action", "package"}, {"action", "package"}),
     "open_app": ({"action", "package"}, {"action", "package"}),
+    "web_search": ({"action", "query"}, {"action", "query"}),
     **{k: ({"action"}, {"action"}) for k in ("home", "back", "recents", "notifications")},
     **{k: ({"action", "snapshot", "ref"}, {"action", "snapshot", "ref"}) for k in ("click", "submit_search", "scroll_forward", "scroll_backward")},
     "read_node": ({"action", "snapshot", "ref", "offset"}, {"action", "snapshot", "ref"}),
@@ -20,7 +21,7 @@ def validate_action(args):
     if not isinstance(args, dict) or not isinstance(args.get("action"), str) or args["action"] not in FIELDS:
         raise Denied("INVALID_ARGUMENTS")
     allowed, required = FIELDS[args["action"]]
-    if args["action"] not in {"list_apps", "open_app", "approval_status", "cancel_approval", "read_node", "package_version"}:
+    if args["action"] not in {"list_apps", "open_app", "web_search", "approval_status", "cancel_approval", "read_node", "package_version"}:
         allowed = allowed | {"confirmation"}
     if not required <= set(args) <= allowed:
         raise Denied("INVALID_ARGUMENTS")

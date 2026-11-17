@@ -954,7 +954,7 @@ class VoiceLink:
         return {"action": "block", "message": _messages.text(self.ctx, "voice.blocked")}
 
     def _inject(self, text: str, *, _collection_ingress: bool = False,
-                _ingress_operation_id=None, _speech_snapshot=None) -> tuple[int, dict]:
+                _ingress_operation_id=None, _speech_snapshot=None, _followup=False) -> tuple[int, dict]:
         with self._lock:
             if error := self._http_session_error():
                 return error
@@ -984,6 +984,9 @@ class VoiceLink:
         if len(spoken_text) + len(self._voice_prefix()) > MAX_TEXT:
             return 413, {"ok": False, "error": "text_too_long"}
         text = self.format_voice_message(spoken_text)
+        if _followup:
+            text = (self._voice_prefix() + _messages.text(self.ctx, "voice.followup")
+                    + spoken_text.strip())
         if not self.listening:
             return 503, {"ok": False, "error": "bridge_off"}
         session_key = str(self.ctx.get_config("session_key", "") or "").strip() or None
@@ -1267,7 +1270,7 @@ class VoiceLink:
                 self._audio_lock.release()
 
     def hear(self, audio: bytes, suffix: str, *, ingress_operation_id=None,
-             session_generation=None) -> tuple[int, dict]:
+             session_generation=None, followup=False) -> tuple[int, dict]:
         # Legacy internal fixtures may omit scope; HTTP always requires both fields.
         with self._lock:
             if error := self._http_session_error():
@@ -1292,7 +1295,8 @@ class VoiceLink:
             # Also account for legacy unscoped callers until their STT/purge exits.
             self._ingress_active.add(ingress_operation_id)
         try:
-            return self._hear(audio, suffix, ingress_operation_id=ingress_operation_id)
+            return self._hear(audio, suffix, ingress_operation_id=ingress_operation_id,
+                              followup=followup is True)
         finally:
             with self._lock:
                 self._ingress_active.discard(ingress_operation_id)
@@ -1316,7 +1320,8 @@ class VoiceLink:
                 self._cancel_cleanup_blocked = True
         return checked
 
-    def _hear(self, audio: bytes, suffix: str, *, ingress_operation_id=None) -> tuple[int, dict]:
+    def _hear(self, audio: bytes, suffix: str, *, ingress_operation_id=None,
+              followup=False) -> tuple[int, dict]:
         """Use only Hermes' configured STT; delete the temporary upload in every outcome."""
         admission = self.voice_admission()
         if not admission["ok"]:
@@ -1367,7 +1372,8 @@ class VoiceLink:
             # Exact FULL provider transcript, before stripping/wake-prefix handling.
             self._capture_sample_upload(audio, suffix, generation, result.get("transcript"))
             code, response = self._inject(transcript, _collection_ingress=True,
-                                         _ingress_operation_id=ingress_operation_id, _speech_snapshot=snapshot)
+                                         _ingress_operation_id=ingress_operation_id, _speech_snapshot=snapshot,
+                                         _followup=followup)
             if code == 200:
                 response.update(stt_fields)
             return code, response
@@ -1739,8 +1745,10 @@ def _make_handler(link: VoiceLink):
                 suffix = (self.headers.get("X-Audio-Format") or ".wav").lower()
                 operation = self.headers.get("X-Voice-Ingress-Operation", "")
                 generation = self.headers.get("X-Voice-Session-Generation", "")
+                # Heard in the post-reply window without a wake word: may be a TV or bystander.
+                followup = self.headers.get("X-Voice-Followup", "") == "1"
                 code, result = link.hear(body, suffix, ingress_operation_id=operation,
-                                         session_generation=generation)
+                                         session_generation=generation, followup=followup)
                 self._send(code, result)
                 return
             if parsed.path in {"/cancel", "/cancel/status"}:

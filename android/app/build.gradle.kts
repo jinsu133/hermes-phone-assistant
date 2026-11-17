@@ -14,8 +14,8 @@ android {
         applicationId = "com.mist.connect.hermeslab"
         minSdk = 26
         targetSdk = 36
-        versionCode = 89
-        versionName = "0.28.0-phone-assistant-preview.20"
+        versionCode = 94
+        versionName = "0.28.0-phone-assistant-preview.25"
         ndk {
             abiFilters += "arm64-v8a"
         }

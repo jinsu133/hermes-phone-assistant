@@ -8,7 +8,8 @@ import java.io.File
 
 /** Debug-only scenario harness. adb (holder of DUMP) names a WAV already placed in the app's
  * private files/debug-input; it is handed to the running hands-free capture as one utterance
- * after the wake word. It never starts the service, never touches confirmation listening. */
+ * after the wake word, or (extra mic=true) played into the live capture in place of microphone
+ * samples so wake/stop detection and endpointing run on it. It never starts the service. */
 class DebugVoiceInjectReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
         val name = intent.getStringExtra("name") ?: ""
@@ -21,7 +22,9 @@ class DebugVoiceInjectReceiver : BroadcastReceiver() {
                 val bytes = file.readBytes()
                 val pcm = InjectedUtterance.parseWav(bytes)
                 bytes.fill(0)
-                if (pcm == null) "bad_wav" else if (InjectedUtterance.offer(pcm)) "queued" else "rejected"
+                if (pcm == null) "bad_wav"
+                else if (intent.getBooleanExtra("mic", false)) { if (InjectedMic.offer(pcm)) "queued_mic" else "rejected" }
+                else if (InjectedUtterance.offer(pcm)) "queued" else "rejected"
             }
         } catch (e: Exception) { "error_" + e.javaClass.simpleName }
         Log.i("HermesInject", "inject name=$name result=$result")

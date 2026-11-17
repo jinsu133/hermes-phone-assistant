@@ -18,7 +18,11 @@ internal class HandsfreeCapture(
         private set
     var wasStopped = false
         private set
-    fun nextRequest(followup: Boolean = false, waitText: String? = null, start: ((() -> Unit) -> Boolean)? = null): ByteArray? {
+    /** [screen] (follow-up only) sees a completed utterance before it is returned. False means
+     * no words were heard: the audio is discarded and the same window keeps listening. */
+    fun nextRequest(followup: Boolean = false, waitText: String? = null,
+                    screen: ((ByteArray) -> Boolean)? = null,
+                    start: ((() -> Unit) -> Boolean)? = null): ByteArray? {
         wasStopped = false
         detector.reset()
         detector.prepareStop() // Load before opening the microphone, never mid-command.
@@ -37,7 +41,8 @@ internal class HandsfreeCapture(
         var totalSamples = 0L
         val capture = object : ByteArrayOutputStream() { fun wipe() { buf.fill(0); reset() } }
         var triggered = followup
-        val end = SpeechEndGate(if (followup) 30000 else 7000)
+        var end = SpeechEndGate(if (followup) 30000 else 7000)
+        var windowStartedAt = 0L
         var followupSpeechStarted = false
         var captureStartedAt = 0L
         var primary: Throwable? = null
@@ -52,6 +57,7 @@ internal class HandsfreeCapture(
             check(audio.recordingState == AudioRecord.RECORDSTATE_RECORDING)
             typedState(if (followup) ServiceUiPublication.CaptureEvent.FOLLOW_UP else ServiceUiPublication.CaptureEvent.WAKE_WAIT)
             if (triggered) captureStartedAt = android.os.SystemClock.elapsedRealtime()
+            windowStartedAt = android.os.SystemClock.elapsedRealtime()
             state(waitText ?: if (followup) AppText.get(R.string.rt_followup, "이어 말하세요 · 30초 동안 기다립니다") else AppText.wakeWait())
             while (active()) {
                 val injected = InjectedUtterance.take() // debug harness only; always null in release
@@ -80,6 +86,7 @@ internal class HandsfreeCapture(
                 }
                 micRecoveries = 0
                 if (n == 0) { Thread.sleep(20); continue }
+                InjectedMic.overlay(block, 0, n) // debug harness only; no-op in release
                 totalSamples += n
                 if (!triggered) {
                     for (i in 0 until n) { ring[ringPos] = block[i]; ringPos = (ringPos+1)%ring.size; ringSize = minOf(ringSize+1,ring.size) }
@@ -126,7 +133,23 @@ internal class HandsfreeCapture(
                     end.checkWallTime(android.os.SystemClock.elapsedRealtime() - captureStartedAt)
                     if (finished) {
                         end.requireCompleteOrEmpty()
-                        if(end.decision() == SpeechEndGate.Decision.COMPLETE) { VoiceDiagnostics.captures.incrementAndGet(); endReason = CaptureEnd.COMPLETE; return capture.toByteArray() }
+                        if(end.decision() == SpeechEndGate.Decision.COMPLETE) {
+                            val pcm = capture.toByteArray()
+                            if (followup && screen != null && !screen(pcm)) {
+                                // Ambient sound without words (TV, notification): keep the window.
+                                pcm.fill(0); capture.wipe(); ring.fill(0); ringSize = 0
+                                val now = android.os.SystemClock.elapsedRealtime()
+                                val left = SpeechEndGate.MAX_UTTERANCE_MS - (now - windowStartedAt)
+                                try { android.util.Log.i("VoiceEnd", "followup_screened words=false left_ms=$left ${end.metrics()}") } catch (_: Throwable) { }
+                                if (left < 2000) { VoiceDiagnostics.silences.incrementAndGet(); endReason = CaptureEnd.NO_SPEECH; return ByteArray(0) }
+                                detector.reset(); detector.prepareStop()
+                                end = SpeechEndGate(left); captureStartedAt = now; followupSpeechStarted = false
+                                state(waitText ?: AppText.get(R.string.rt_followup, "이어 말하세요 · 30초 동안 기다립니다"))
+                                block.fill(0)
+                                continue
+                            }
+                            VoiceDiagnostics.captures.incrementAndGet(); endReason = CaptureEnd.COMPLETE; return pcm
+                        }
                         VoiceDiagnostics.silences.incrementAndGet(); endReason = CaptureEnd.NO_SPEECH; return ByteArray(0)
                     }
                 }
@@ -209,6 +232,7 @@ internal class HandsfreeCapture(
                 val n = audio.read(block,filled,block.size-filled,AudioRecord.READ_NON_BLOCKING)
                 check(n >= 0)
                 if (n == 0) { Thread.sleep(5); continue }
+                InjectedMic.overlay(block, filled, n) // debug harness only; no-op in release
                 filled += n; readFrames += n
                 if (filled < block.size) continue
                 val ref = reference()

@@ -49,6 +49,11 @@ EN: dict[str, str] = {
     "voicefix.err.correction_store_too_large": "the store file is too large",
     "voicefix.err.default": "it could not be saved",
     # Voice turn context (model-facing)
+    "voice.followup": (
+        "[Follow-up window: this was heard without the wake word, right after your last spoken reply. "
+        "It may be a TV, video or another person nearby rather than the user. If it is clearly not addressed "
+        "to you and does not continue the previous conversation, do nothing, call no tools and reply with exactly "
+        "〔IGNORE〕 and nothing else. If it could be the user's follow-up, answer normally.]\n"),
     "voice.prefix": (
         "[Phone voice request. phone_act can open apps, navigate and type ordinary text. "
         "A voice is not identity verification. Ask for approval on phone actions only right before a "
@@ -61,7 +66,9 @@ EN: dict[str, str] = {
         "This is a phone voice turn. Use phone_observe and phone_act to perform the requested ordinary "
         "actions, and re-read the screen after each action to confirm it. phone_act provides "
         "list_apps/open_app/home/back/recents/notifications/click/input_text/scroll_forward/"
-        "scroll_backward. click, input and scroll need the latest snapshot and ref. Do not route phone "
+        "scroll_backward/web_search. click, input and scroll need the latest snapshot and ref. "
+        "To search the web (in the browser or Google), use web_search(query): it opens the results page "
+        "directly; do not type into web page search boxes, which is refused. Do not route phone "
         "control around this through a terminal or ADB. phone_act waits for any supported voice approval "
         "and returns its result; when it does, read the latest screen and continue with the next step of "
         "the original request. Answer and stop as soon as the request is satisfied. A 'home screen' "
@@ -155,6 +162,10 @@ KO: dict[str, str] = {
     "voicefix.err.correction_store_unreadable": "저장 파일을 읽을 수 없습니다",
     "voicefix.err.correction_store_too_large": "저장 파일이 너무 큽니다",
     "voicefix.err.default": "저장하지 못했습니다",
+    "voice.followup": (
+        "[이어 말하기: 직전 음성 답변 직후 호출어 없이 들린 말입니다. 사용자가 아니라 TV·영상·주변 사람의 말일 수 있습니다. "
+        "분명히 당신에게 하는 말이 아니고 앞 대화와도 이어지지 않으면 아무 도구도 쓰지 말고 정확히 〔IGNORE〕만 답하세요. "
+        "사용자의 이어지는 말일 수 있으면 평소처럼 답하세요.]\n"),
     "voice.prefix": (
         "[휴대폰 음성 요청입니다. 앱 열기·탐색·일반 텍스트 입력은 phone_act로 수행할 수 있습니다. "
         "음성은 본인 인증이 아닙니다. 휴대폰 조작의 AI 승인은 금융 실제 처리·카카오톡 포함 메시지 최종 전송·실제 발신 직전에만 받습니다. "
@@ -164,7 +175,8 @@ KO: dict[str, str] = {
     "voice.hook": (
         "휴대폰 음성 턴입니다. phone_observe와 phone_act를 사용하여 요청한 일반 조작을 수행하세요. "
         "각 조작 후 화면을 다시 읽어 확인하세요. phone_act는 list_apps/open_app/home/back/recents/notifications/"
-        "click/input_text/scroll_forward/scroll_backward를 제공합니다. 클릭·입력·스크롤은 최신 snapshot과 ref가 필요합니다. "
+        "click/input_text/scroll_forward/scroll_backward/web_search를 제공합니다. 클릭·입력·스크롤은 최신 snapshot과 ref가 필요합니다. "
+        "웹(브라우저·구글) 검색은 web_search(query)로 결과 페이지를 바로 여세요. 웹 페이지 안의 검색창 입력은 거부됩니다. "
         "휴대폰 조작을 터미널·ADB로 우회하지 마세요. 지원되는 음성 승인은 phone_act가 기다리고 결과를 반환합니다. "
         "결과가 오면 최신 화면을 읽고 원래 요청의 다음 단계를 계속하세요. "
         "요청이 충족되면 즉시 답하고 끝내세요. 홈 화면 요청은 런처가 보이면 완료이며 다른 홈 페이지를 추가 탐색하지 마세요. "

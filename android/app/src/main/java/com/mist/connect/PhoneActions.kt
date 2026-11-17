@@ -594,6 +594,7 @@ internal class PhoneActions(private val service: McpService) {
         if(op=="click" && n!=null && (!n.isClickable || !n.isEnabled)) return PhoneActionPolicy.Decision.DENY
         // Text that an app could execute as a URI is never a routine input.
         if(op=="input_text" && !ActionRiskPolicy.safeQuery(args.optString("text"))) return PhoneActionPolicy.Decision.DENY
+        if(op=="web_search" && !ActionRiskPolicy.safeQuery(args.optString("query"))) return PhoneActionPolicy.Decision.DENY
         // No app-specific gates here: every app gets the same structural classification.
         return PhoneActionPolicy.decide(op,foreground,n?.viewIdResourceName ?: "",n?.className?.toString() ?: "",m.labels,
             n?.isEditable ?: false,n?.isCheckable ?: false,m.web,(n?.let { sensitive(it) } ?: false) || !m.complete,
@@ -655,13 +656,14 @@ internal class PhoneActions(private val service: McpService) {
         val required=when(op) {
             "list_apps" -> setOf("action")
             "open_app" -> setOf("action","package")
+            "web_search" -> setOf("action","query")
             "package_version" -> setOf("action","package")
             "home","back","recents","notifications" -> setOf("action")
             "click","read_node","submit_search","scroll_forward","scroll_backward" -> setOf("action","snapshot","ref")
             "input_text" -> setOf("action","snapshot","ref","text")
             else -> error("unsupported_action")
         }
-        val optional=if(op=="list_apps") setOf("query") else if(op=="read_node") setOf("offset") else if(op !in setOf("open_app","list_apps","package_version")) setOf("confirmation") else emptySet()
+        val optional=if(op=="list_apps") setOf("query") else if(op=="read_node") setOf("offset") else if(op !in setOf("open_app","list_apps","package_version","web_search")) setOf("confirmation") else emptySet()
         val keys=args.keys().asSequence().toSet()
         require(keys.containsAll(required) && keys.all { it in required || it in optional })
         if(op=="submit_search") check(decision(args)!=PhoneActionPolicy.Decision.DENY) { "unsupported_ui" }
@@ -722,6 +724,17 @@ internal class PhoneActions(private val service: McpService) {
             require(pkg.matches(Regex("[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z0-9_]+)+")))
             val launch = checkNotNull(service.packageManager.getLaunchIntentForPackage(pkg)) { "app_not_launchable" }
             clear(); a.startActivity(launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            return JSONObject().put("dispatched", true).put("verify_with_observe", true)
+        }
+        if (op == "web_search") {
+            // Opens a results page in the browser instead of typing into a web form, which the
+            // policy refuses. Navigation only: no submit, account or payment effect.
+            val query = args.getString("query").trim()
+            require(query.isNotEmpty() && query.length <= 200 && query.none { it.isISOControl() })
+            val view = Intent(Intent.ACTION_VIEW,
+                android.net.Uri.parse("https://www.google.com/search?q=" + android.net.Uri.encode(query)))
+                .addCategory(Intent.CATEGORY_BROWSABLE)
+            clear(); a.startActivity(view.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             return JSONObject().put("dispatched", true).put("verify_with_observe", true)
         }
         if (op == "package_version") {

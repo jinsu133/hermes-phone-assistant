@@ -10,7 +10,7 @@ object McpToolSchemas {
                 "include_bounds" to mapOf("type" to "boolean")
             )
             "phone_action" -> mapOf(
-                "action" to mapOf("type" to "string", "enum" to listOf("list_apps", "open_app", "home", "back", "recents", "notifications", "click", "read_node", "input_text", "submit_search", "scroll_forward", "scroll_backward", "approval_status", "cancel_approval")),
+                "action" to mapOf("type" to "string", "enum" to listOf("list_apps", "open_app", "web_search", "home", "back", "recents", "notifications", "click", "read_node", "input_text", "submit_search", "scroll_forward", "scroll_backward", "approval_status", "cancel_approval")),
                 "package" to string(), "query" to string(), "snapshot" to string(), "ref" to string(),
                 "text" to string(), "offset" to mapOf("type" to "integer", "minimum" to 0, "maximum" to 64000),
                 "request_id" to string(), "_voice_request_id" to string(),

@@ -75,7 +75,7 @@ public final class ScopedVoiceCancellationTest {
         Path sources = Path.of(args[0]);
         String service = new String(Files.readAllBytes(sources.resolve("VoiceRequestService.kt")), java.nio.charset.StandardCharsets.UTF_8);
         String client = new String(Files.readAllBytes(sources.resolve("VoiceBridgeClient.kt")), java.nio.charset.StandardCharsets.UTF_8);
-        check(service.contains("VoiceBridgeClient.submitAudio(token, wav, uploadScope, beforeUpload = {")
+        check(service.contains("VoiceBridgeClient.submitAudio(token, wav, uploadScope, followup = followup, beforeUpload = {")
             && service.contains("playback.consumeUpload(permit,") && service.contains("cancellation.current(uploadScope)"),
             "production service submits scoped upload through current-owner effect gate");
         check(service.contains("cancellation.accept(uploadScope, accepted.optString(\"session_generation\")"), "service validates scoped acceptance");

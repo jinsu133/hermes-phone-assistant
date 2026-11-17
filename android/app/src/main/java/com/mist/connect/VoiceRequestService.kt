@@ -31,6 +31,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 /** Explicit, bounded push-to-talk path into the configured Hermes conversation. */
 class VoiceRequestService : Service() {
     companion object {
+        /** Exact reply the plugin asks Hermes for when follow-up audio is not addressed to it. */
+        internal const val FOLLOWUP_IGNORED = "〔IGNORE〕"
         // Legacy controller trial uses a dedicated fixture credential, never voice_token.
         // Normal streaming below uses private opt-in + authenticated existing pairing.
         internal var controllerTrialFactory: ((SourceServicePlaybackAdapter) -> SourceControllerTransport)? = null
@@ -153,6 +155,10 @@ class VoiceRequestService : Service() {
     @Volatile private var normalStream: NormalVoiceStream? = null
     @Volatile private var requestRender: NormalVoiceStream.Request? = null
     @Volatile private var pendingFinalContent: NormalVoiceStream.ContentDone? = null
+    /** A follow-up Hermes answered with IGNORE. Completed only after the turn's stop monitor
+     * (and any barge-in handoff) has ended, so it never races a duplex cancellation. */
+    @Volatile private var ignoredScope: ScopedVoiceCancellation.Scope? = null
+    @Volatile private var lastTurnIgnored = false
     @Volatile private var acceptedRenderCancellation: ScopedVoiceCancellation.Scope? = null
     @Volatile private var requestAbsoluteDeadline = 0L
     private val contentEpoch = java.util.concurrent.atomic.AtomicLong(0)
@@ -461,7 +467,7 @@ class VoiceRequestService : Service() {
                     val retained = pendingDuplexPcm
                     pendingDuplexPcm = null
                     val pcm = if (retained != null) retained.pcm else try {
-                        capture.nextRequest(ticket != null) { start ->
+                        capture.nextRequest(ticket != null, screen = if (ticket != null) ::screenFollowup else null) { start ->
                             if (ticket != null) listen(ticket,
                                 { captureValid() && !turnStopped.get() && ticket.request == playbackRequestScope && revision == consentRevision.get() }, start)
                             else playback.captureIdle(epoch, revision, { captureValid() }, start)
@@ -474,7 +480,11 @@ class VoiceRequestService : Service() {
                         ByteArray(0) // No upload, acceptance, STOP, or retained follow-up ticket.
                     } finally { playback.endListening(epoch, capture.cleanupConfirmed) }
                     followup = null
-                    if (pcm == null) break
+                    if (pcm == null) {
+                        Log.i("VoiceRequest", "listen loop end running=${running.get()} cancelled=${cancelled.get()} " +
+                            "cancel_blocked=${cancellation.blocked()} controller=${playback.controllerCurrent()}")
+                        break
+                    }
                     if (capture.wasStopped) {
                         McpService.actionsPaused = true
                         stopConversation(token)
@@ -490,6 +500,8 @@ class VoiceRequestService : Service() {
                     }
                     if (!running.get()) { pcm.fill(0); break }
                     turnStopped.set(false)
+                    ignoredScope = null
+                    lastTurnIgnored = false
                     McpService.actionsPaused = false
                     requestAbsoluteDeadline = SystemClock.elapsedRealtime() + REQUEST_LIMIT_MS
                     main.post { if (running.get()) main.postDelayed(deadline, REQUEST_LIMIT_MS) }
@@ -498,7 +510,7 @@ class VoiceRequestService : Service() {
                     val duplexTurn = newDuplexTurn(token, duplexRevision)
                     val success = java.util.concurrent.atomic.AtomicReference<PlaybackTicket?>(null)
                     val request = Thread({
-                        try { promoteToPlayback(); success.set(submitAndSpeak(pcm, token, retained)) }
+                        try { promoteToPlayback(); success.set(submitAndSpeak(pcm, token, retained, followup = ticket != null)) }
                         catch (error: Exception) {
                             playback.serviceFailure(SourceServicePlaybackAdapter.ServiceStage.REQUEST, error)
                             uiPublication.blocked(uiPublication.requestScope(), ServiceUiPublication.Blocker.REQUEST_FAILED)
@@ -515,7 +527,7 @@ class VoiceRequestService : Service() {
                         finally {
                             // Content-done releases the monitor loop. It is NOT a played ticket.
                             // Keep exact accepted cancellation and the absolute timer until settlement.
-                            val abandoned = if (normalStreaming && pendingFinalContent != null) null else
+                            val abandoned = if ((normalStreaming && pendingFinalContent != null) || ignoredScope != null) null else
                                 synchronized(cancellation) {
                                     val displayRequest = uiPublication.requestScope()
                                     cancellation.cancel().also {
@@ -548,7 +560,11 @@ class VoiceRequestService : Service() {
                     }
                     if (running.get() && pendingDuplexPcm == null) Thread.sleep(800)
                     followup = success.get()?.takeIf { !turnStopped.get() }
-                    if (turnStopped.get() && running.get() && pendingDuplexPcm == null) {
+                    // An ignored follow-up ends with no listening ticket, like STOP: hand the
+                    // owner a fresh epoch so the next wake-wait capture is admitted.
+                    val ignoredTurn = lastTurnIgnored
+                    lastTurnIgnored = false
+                    if ((turnStopped.get() || ignoredTurn) && running.get() && pendingDuplexPcm == null) {
                         check(quiescePlayback(true)) { "playback_cleanup_unconfirmed" }
                         check(playback.beginChecked(playbackEpoch.incrementAndGet(), consentRevision.get(), { captureValid() })) { "playback_owner_blocked" }
                     }
@@ -556,6 +572,14 @@ class VoiceRequestService : Service() {
             }
         } catch (error: Exception) {
             playback.serviceFailure(SourceServicePlaybackAdapter.ServiceStage.HANDSFREE, error)
+            // Fixed check/protocol strings and app frames only (never transcript, token or reply text).
+            try {
+                val at = error.stackTrace.firstOrNull { it.className.startsWith("com.mist.") }
+                fun code(t: Throwable) = (t.message ?: "").takeIf { Regex("[a-z0-9_]{1,64}").matches(it) } ?: "-"
+                val suppressed = error.suppressed.joinToString(",") { it.javaClass.simpleName + ":" + code(it) }
+                Log.w("VoiceRequest", "handsfree failed type=${error.javaClass.simpleName} code=${code(error)} " +
+                    "at=${at?.fileName}:${at?.lineNumber} suppressed=[$suppressed]")
+            } catch (_: Throwable) { }
             uiPublication.blocked(displayScope, ServiceUiPublication.Blocker.REQUEST_FAILED)
             if (running.get()) status = AppText.get(R.string.rt_listen_error, "듣기 오류: ${safeCategory(error)}", safeCategory(error))
         } finally {
@@ -596,6 +620,17 @@ class VoiceRequestService : Service() {
             }
             // settleRequestRender initiates maintenance closure before the physical join.
             settle { check(playback.awaitWorker(5000)) { "duplex_render_cleanup_unconfirmed" } }
+            ignoredScope?.let { ignored ->
+                // The monitor has closed: no barge-in can claim this scope any more. If one did
+                // earlier, the scope is no longer current and its own cancellation owns it.
+                ignoredScope = null
+                synchronized(cancellation) {
+                    if (cancellation.current(ignored)) {
+                        cancellation.complete(ignored)
+                        uiPublication.retireRequest(uiPublication.requestScope(), true)
+                    }
+                }
+            }
             settle {
                 val abandoned = synchronized(cancellation) {
                                     val displayRequest = uiPublication.requestScope()
@@ -634,9 +669,11 @@ class VoiceRequestService : Service() {
                 checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED
         }
         return DuplexTurnHandoff({ expected ->
+            // An IGNOREd follow-up already has its answer; barge-in must not re-cancel it remotely.
+            if (ignoredScope != null) { Log.i("VoiceRequest", "duplex skipped ignored_followup"); return@DuplexTurnHandoff null }
             var target: ScopedVoiceCancellation.Scope? = null
             val retained = playback.retainDuplex(expected, revision,
-                { captureValid() && !turnStopped.get() && playbackRequestScope == expected.request }) {
+                { captureValid() && !turnStopped.get() && ignoredScope == null && playbackRequestScope == expected.request }) {
                 synchronized(cancellation) {
                     target = cancellation.cancelRequest(expected.request)
                     check(target != null) { "duplex_cancel_scope_missing" }
@@ -664,6 +701,7 @@ class VoiceRequestService : Service() {
                         uiPublication.remote(ServiceUiPublication.Scope(displaySession.generation, exact.ingressOperationId),
                             if (confirmed) ServiceUiPublication.Cleanup.CONFIRMED else ServiceUiPublication.Cleanup.UNCERTAIN, uiRemoteJoined)
                     }
+                    Log.i("VoiceRequest", "duplex cancel confirmed=$confirmed")
                     if (!confirmed) playback.failCleanup()
                     settleOffCleanup(displaySession)
                 }
@@ -822,7 +860,20 @@ class VoiceRequestService : Service() {
         }
     }
 
-    private fun submitAndSpeak(pcm: ByteArray, token: String, retained: RetainedPcm? = null): PlaybackTicket? {
+    /** Follow-up window only: decode on the phone first. No words means ambient sound, so the
+     * window keeps listening instead of uploading it. Unknown STT outcomes still upload. */
+    private fun screenFollowup(pcm: ByteArray): Boolean {
+        val copy = pcm.copyOf()
+        return try {
+            val result = AndroidNativeStt.transcribe(applicationContext, copy, AndroidSttRequest(copy.size))
+            val verdict = SttPrecheck.verdict(result)
+            if (verdict == true) SttPrecheck.remember(pcm, result, SystemClock.elapsedRealtime())
+            verdict != false
+        } catch (_: Exception) { true } finally { copy.fill(0) }
+    }
+
+    private fun submitAndSpeak(pcm: ByteArray, token: String, retained: RetainedPcm? = null,
+                               followup: Boolean = false): PlaybackTicket? {
         val displaySession = uiScope
         var displayRequest: ServiceUiPublication.Scope? = null
         // Preserve capture ownership through unlock/session lookup/WAV conversion. Never
@@ -859,7 +910,7 @@ class VoiceRequestService : Service() {
         try {
             status = AppText.get(R.string.rt_stt_sending, "음성을 Hermes STT로 전송합니다.")
             VoiceDiagnostics.uploads.incrementAndGet()
-            val accepted = VoiceBridgeClient.submitAudio(token, wav, uploadScope, beforeUpload = {
+            val accepted = VoiceBridgeClient.submitAudio(token, wav, uploadScope, followup = followup, beforeUpload = {
                 check(playback.consumeUpload(permit, {
                     captureValid() && !turnStopped.get() && epoch == playbackEpoch.get() && revision == consentRevision.get()
                 }) {
@@ -951,6 +1002,19 @@ class VoiceRequestService : Service() {
         }
         if (!running.get() || cancelled.get() || turnStopped.get()) return null
         if (replyText.isNullOrBlank()) throw VoiceBridgeClient.BridgeException("reply_timeout")
+        if (followup && replyText!!.trim() == FOLLOWUP_IGNORED) {
+            // Hermes judged the follow-up audio (TV, bystander) not addressed to it: no speech.
+            synchronized(cancellation) {
+                // A barge-in that already claimed this request owns it (and the next turn).
+                if (turnStopped.get() || !cancellation.current(acceptedScope)) return null
+                ignoredScope = acceptedScope
+                lastTurnIgnored = true
+            }
+            android.util.Log.i("VoiceRequest", "followup ignored as not addressed")
+            if (!turnStopped.get() && !cancelled.get())
+                status = AppText.get(R.string.rt_followup_ignored, "주변 소리로 판단해 응답하지 않았습니다")
+            return null
+        }
         synchronized(cancellation) {
             if (cancellation.current(acceptedScope) && activeRequestId == requestId && running.get() &&
                 !cancelled.get() && !turnStopped.get()) uiPublication.publishFinal(displayRequest, requestId, replyText)
@@ -1213,6 +1277,7 @@ class VoiceRequestService : Service() {
             confirmed = true
         } catch (error: Exception) {
             playback.serviceFailure(SourceServicePlaybackAdapter.ServiceStage.REQUEST, error)
+            try { Log.w("VoiceRequest", "remote cancel unconfirmed type=${error.javaClass.simpleName} await=$awaitSettlement") } catch (_: Throwable) { }
             playback.failCleanup()
             status = AppText.get(R.string.rt_blocked_remote, "원격 요청 정리가 확인되지 않아 새 음성 요청을 차단했습니다")
         } finally {

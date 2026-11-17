@@ -8,7 +8,7 @@ import java.util.regex.Pattern;
  * risky ones stay denied. */
 public final class PhoneActionPolicy {
     public enum Decision { ROUTINE, REVIEW, PAYMENT, MESSAGE, CALL, DENY }
-    private static final Set<String> GLOBAL=Set.of("home","back","recents","notifications","open_app","list_apps","read_node","package_version");
+    private static final Set<String> GLOBAL=Set.of("home","back","recents","notifications","open_app","list_apps","read_node","package_version","web_search");
     private static final Set<String> MESSAGING=Set.of("com.kakao.talk","com.google.android.apps.messaging","com.samsung.android.messaging","org.telegram.messenger","com.whatsapp","org.thoughtcrime.securesms");
     private static final Set<String> DIALERS=Set.of("com.android.dialer","com.google.android.dialer","com.samsung.android.dialer");
     private static final Set<String> NODE=Set.of("click","input_text","submit_search","scroll_forward","scroll_backward");

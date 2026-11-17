@@ -19,6 +19,7 @@ internal object VoiceBridgeClient {
                          val segment: Int = 0, val segmentCount: Int = 1)
 
     fun submitAudio(token: String, wav: ByteArray, scope: ScopedVoiceCancellation.Scope,
+                    followup: Boolean = false,
                     beforeUpload: () -> Unit = {}, onConnection: (HttpURLConnection?) -> Unit): JSONObject {
         require(VoiceBridgeProtocol.validToken(token)) { "invalid_voice_credential" }
         require(wav.isNotEmpty() && wav.size <= VoiceBridgeProtocol.MAX_HTTP_BODY) { "audio_size_invalid" }
@@ -30,6 +31,7 @@ internal object VoiceBridgeClient {
             connection.setRequestProperty("X-Audio-Format", ".wav")
             connection.setRequestProperty("X-Voice-Ingress-Operation", scope.ingressOperationId)
             connection.setRequestProperty("X-Voice-Session-Generation", scope.sessionGeneration)
+            if (followup) connection.setRequestProperty("X-Voice-Followup", "1")
             connection.setFixedLengthStreamingMode(wav.size)
             beforeUpload() // Last local admission boundary before connecting/writing the body.
             connection.outputStream.use { it.write(wav) }

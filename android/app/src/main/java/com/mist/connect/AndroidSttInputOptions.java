@@ -8,13 +8,20 @@ import java.util.Map;
  * limits: reserve 2s setup and 3s finalization inside that limit, never truncate PCM.
  */
 public final class AndroidSttInputOptions {
-    public static final AndroidSttInputOptions LEGACY = new AndroidSttInputOptions(false);
-    public static final AndroidSttInputOptions REALTIME = new AndroidSttInputOptions(true);
+    /** Default: unpaced writes, then the input stays open until segment results settle. */
+    public static final AndroidSttInputOptions LEGACY = new AndroidSttInputOptions(false, true);
+    public static final AndroidSttInputOptions REALTIME = new AndroidSttInputOptions(true, false);
+    /** Comparison only: the pre-v90 writer that closed the input right after the last byte. */
+    public static final AndroidSttInputOptions UNPACED_CLOSE = new AndroidSttInputOptions(false, false);
     public static final String HEADER = "x-hermes-stt-pacing";
     public static final String WIRE_MODE = "realtime_20ms";
+    public static final String WIRE_UNPACED_CLOSE = "unpaced_close";
     private static final long MAX_WAIT_MS = 30_000, SETUP_MS = 2_000, FINAL_MS = 3_000;
-    private final boolean paced;
-    private AndroidSttInputOptions(boolean paced) { this.paced = paced; }
+    private final boolean paced, drainHold;
+    private AndroidSttInputOptions(boolean paced, boolean drainHold) { this.paced = paced; this.drainHold = drainHold; }
+    /** Closing the input at once made on-device recognition end the segmented session before
+     * later segments (after a mid-sentence pause) were decoded: only the first part survived. */
+    public boolean drainHold() { return drainHold; }
 
     /** HTTP parser supplies lower-case unique keys. Ignore ordinary HTTP extensions;
      * reject every unknown option in our reserved namespace, without type coercion. */
@@ -26,6 +33,7 @@ public final class AndroidSttInputOptions {
         }
         if (!headers.containsKey(HEADER)) return LEGACY;
         Object value = headers.get(HEADER);
+        if (WIRE_UNPACED_CLOSE.equals(value)) return UNPACED_CLOSE;
         if (!(value instanceof String) || !WIRE_MODE.equals(value))
             throw new IllegalArgumentException("stt_pacing_invalid");
         return REALTIME;
